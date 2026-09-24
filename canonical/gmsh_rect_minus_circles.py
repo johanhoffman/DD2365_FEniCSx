@@ -1,4 +1,4 @@
-import numpy as np
+import math
 import gmsh
 from mpi4py import MPI
 from dolfinx.io import gmsh as gmshio
@@ -14,9 +14,17 @@ def gmsh_rect_minus_circles(L, H, circles, resolution):
     circles : list of (cx, cy, r)
         Circle centres and radii to subtract.
     resolution : int
-        Global mesh size target: lc = 1/resolution.  mshr's ``resolution``
-        parameter has slightly different semantics (CGAL internal); here lc
-        sets a uniform global target — cell count will differ slightly.
+        Mesh density parameter.  The global size bound is
+
+            lc = 0.65 * sqrt(L² + H²) / resolution
+
+        This matches the mshr/CGAL semantics used in the legacy FEniCS
+        notebooks: mshr's ``resolution`` sets a CGAL size bound equal to
+        the bounding-box diagonal divided by ``resolution``; gmsh realised
+        edges are approximately 0.6× that bound.  The factor 0.65 was
+        calibrated so that the standard test case (L=4, H=2, 3 circular
+        holes, resolution=32) produces ≈2319 cells — matching the legacy
+        mshr mesh (2319 cells, 1247 P1 dofs).
 
     Returns
     -------
@@ -28,6 +36,9 @@ def gmsh_rect_minus_circles(L, H, circles, resolution):
     Facet tags are not produced here.  Call ``tag_boundaries(msh, L, H)``
     on the final mesh (after any refinement) to obtain boundary MeshTags.
     """
+    _ALPHA = 0.65
+    lc = _ALPHA * math.sqrt(L**2 + H**2) / resolution
+
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
 
@@ -37,8 +48,6 @@ def gmsh_rect_minus_circles(L, H, circles, resolution):
         gmsh.model.occ.cut([(2, rect)], disks)
     gmsh.model.occ.synchronize()
 
-    lc = 1.0 / resolution
-    gmsh.option.setNumber("Mesh.MeshSizeMin", 0.5 * lc)
     gmsh.option.setNumber("Mesh.MeshSizeMax", lc)
 
     surfaces = gmsh.model.getEntities(2)

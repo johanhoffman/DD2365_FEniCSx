@@ -70,7 +70,10 @@ Each notebook embeds reusable code blocks delimited by:
 ```
 
 The source of truth is `canonical/<name>.py`.  Six blocks are currently defined:
-`bootstrap`, `gmsh_rect_minus_circles`, `refine_cells`, `plot_helpers`, `export_xdmf`, `tag_boundaries`.
+`bootstrap` (v1), `gmsh_rect_minus_circles` (v1), `refine_cells` (v1), `plot_helpers` (v2), `export_xdmf` (v2), `tag_boundaries` (v1).
+
+`plot_helpers v2` adds `plot_scalar(f)` and `plot_vector(u)` for Stokes/NS fields.
+`export_xdmf v2` auto-interpolates to P1 before writing (XDMF stores nodal data only).
 
 **Facet tagging:** `gmsh_rect_minus_circles` returns only `(msh, cell_tags)`. Call
 `tag_boundaries(msh, L, H)` on the final mesh (after any refinement) to get boundary
@@ -96,7 +99,7 @@ python tools/run_notebooks.py
 | Notebook | Ported | Local run | Colab run | Validated vs legacy |
 |----------|:------:|:---------:|:---------:|:-------------------:|
 | Poisson_equation.ipynb | ✓ | ✓ | — | — |
-| Stokes.ipynb | — | — | — | — |
+| template-report-Stokes.ipynb | ✓ | ✓ | — | — |
 | Navier-Stokes.ipynb | — | — | — | — |
 | Stokes-AMR.ipynb | — | — | — | — |
 | Navier-Stokes-ALE.ipynb | — | — | — | — |

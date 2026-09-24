@@ -12,9 +12,14 @@ Exit 0 if all pass; nonzero if any fail.
 
 Requires: nbclient, nbformat  (both in the fenicsx-0.11 conda env)
 """
-import sys, time, pathlib, argparse
+import sys, os, time, pathlib, argparse
 import nbformat
 from nbclient import NotebookClient
+
+# Non-interactive backend for headless execution — avoids plt.show() warnings
+# and the need for a display.  Notebooks must NOT call matplotlib.use() directly;
+# the backend is set here via the environment so it applies to every kernel.
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(

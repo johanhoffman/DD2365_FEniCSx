@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, subprocess
 
 _on_colab = "google.colab" in sys.modules
 
@@ -9,16 +9,18 @@ if _on_colab:
     try:
         import gmsh
     except ImportError:
-        os.system(
+        subprocess.run(
             'wget -q "https://fem-on-colab.github.io/releases/gmsh-install.sh"'
-            ' -O /tmp/gmsh-install.sh && bash /tmp/gmsh-install.sh'
+            ' -O /tmp/gmsh-install.sh && bash /tmp/gmsh-install.sh',
+            shell=True, check=True,
         )
     try:
         import dolfinx
     except ImportError:
-        os.system(
+        subprocess.run(
             'wget -q "https://fem-on-colab.github.io/releases/fenicsx-install-release-real.sh"'
-            ' -O /tmp/fenicsx-install.sh && bash /tmp/fenicsx-install.sh'
+            ' -O /tmp/fenicsx-install.sh && bash /tmp/fenicsx-install.sh',
+            shell=True, check=True,
         )
 
 import dolfinx

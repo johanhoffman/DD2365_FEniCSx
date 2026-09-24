@@ -4,10 +4,18 @@ from mpi4py import MPI
 from dolfinx.io import XDMFFile
 
 
-def export_xdmf(path, funcs):
+def export_xdmf(path, funcs, download=False):
     """Export a list of Functions to XDMF for ParaView.
 
-    On Colab, tars the .xdmf/.h5 pair and triggers a browser download.
+    Parameters
+    ----------
+    path : str or Path
+        Output .xdmf file path (an .h5 sidecar is written alongside it).
+    funcs : list of dolfinx.fem.Function
+        Functions to export (must share the same mesh).
+    download : bool, optional
+        If True *and* running on Colab, tar the .xdmf/.h5 pair and trigger
+        a browser download.  Default False.
     """
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -16,7 +24,7 @@ def export_xdmf(path, funcs):
             xdmf.write_mesh(funcs[0].function_space.mesh)
         for f in funcs:
             xdmf.write_function(f)
-    if "google.colab" in sys.modules:
+    if download and "google.colab" in sys.modules:
         import tarfile
         from google.colab import files as colab_files
         tar_path = str(path.with_suffix(".tar.gz"))

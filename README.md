@@ -51,6 +51,7 @@ canonical/
   refine_cells.py
   plot_helpers.py
   export_xdmf.py
+  tag_boundaries.py
 tools/
   check_canonical.py         ← verify notebook blocks match canonical/*.py
   run_notebooks.py           ← headless execution with nbclient
@@ -68,7 +69,14 @@ Each notebook embeds reusable code blocks delimited by:
 # --- end canonical: <name> ---
 ```
 
-The source of truth is `canonical/<name>.py`. To check for drift:
+The source of truth is `canonical/<name>.py`.  Six blocks are currently defined:
+`bootstrap`, `gmsh_rect_minus_circles`, `refine_cells`, `plot_helpers`, `export_xdmf`, `tag_boundaries`.
+
+**Facet tagging:** `gmsh_rect_minus_circles` returns only `(msh, cell_tags)`. Call
+`tag_boundaries(msh, L, H)` on the final mesh (after any refinement) to get boundary
+`MeshTags` with tags left=1, right=2, lower=3, upper=4, circle objects=5.
+
+To check for drift:
 
 ```bash
 python tools/check_canonical.py

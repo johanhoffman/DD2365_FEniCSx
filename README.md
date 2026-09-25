@@ -121,7 +121,7 @@ The hook runs automatically on `git commit` and:
 | Poisson_equation.ipynb | ✓ | ✓ | — | — |
 | template-report-Stokes.ipynb | ✓ | ✓ | — | — |
 | template-report-Stokes-AMR.ipynb | ✓ | ✓ | — | — |
-| Navier-Stokes.ipynb | ✓ | ✓ | — | — |
+| template-report-Navier-Stokes.ipynb | ✓ | ✓ | — | — |
 | Navier-Stokes-ALE.ipynb | — | — | — | — |
 | Elasticity.ipynb | — | — | — | — |
 | Brinkman_NSE.ipynb | — | — | — | — |

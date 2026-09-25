@@ -41,8 +41,17 @@ def plot_p1(u, title="Solution"):
     plot_scalar(u, title=title)
 
 
-def plot_scalar(f, title="Scalar field"):
-    """Plot any scalar Lagrange Function via tripcolor (interpolates to P1 if needed)."""
+def plot_scalar(f, title="Scalar field", ax=None):
+    """Plot any scalar Lagrange Function via tripcolor (interpolates to P1 if needed).
+
+    Parameters
+    ----------
+    f : dolfinx.fem.Function   scalar; any Lagrange degree
+    title : str
+    ax : matplotlib.axes.Axes or None
+        If given, draw into this axes (no new figure, no plt.show()).
+        If None (default), create a new figure and call plt.show().
+    """
     V = f.function_space
     msh = V.mesh
     el = V.ufl_element()
@@ -52,23 +61,30 @@ def plot_scalar(f, title="Scalar field"):
         f1 = Function(_p1_scalar_space(msh))
         f1.interpolate(f)
     x, gdm, vals = _scatter_p1_scalar(f1)
-    fig, ax = plt.subplots(figsize=(8, 3))
+    _standalone = ax is None
+    if _standalone:
+        fig, ax = plt.subplots(figsize=(8, 3))
     tc = ax.tripcolor(x[:, 0], x[:, 1], gdm, vals, shading="gouraud")
     plt.colorbar(tc, ax=ax)
     ax.set_aspect("equal")
     ax.set_title(title)
-    plt.tight_layout()
-    plt.show()
+    if _standalone:
+        plt.tight_layout()
+        plt.show()
 
 
-def plot_vector(u, title="Vector field", quiver=True, quiver_stride=8):
+def plot_vector(u, title="Vector field", quiver=True, quiver_stride=8, ax=None):
     """Plot a 2-D vector Lagrange Function as colour map of |u| + optional quiver.
 
     Parameters
     ----------
     u : dolfinx.fem.Function   value shape (2,); any Lagrange degree
+    title : str
     quiver : bool              overlay subsampled arrows (default True)
     quiver_stride : int        take every N-th mesh node for arrows
+    ax : matplotlib.axes.Axes or None
+        If given, draw into this axes (no new figure, no plt.show()).
+        If None (default), create a new figure and call plt.show().
     """
     msh = u.function_space.mesh
     gdim = msh.geometry.dim
@@ -90,7 +106,9 @@ def plot_vector(u, title="Vector field", quiver=True, quiver_stride=8):
     uy[gdm.ravel()] = arr[ldm.ravel() * gdim + 1]
     mag = np.sqrt(ux**2 + uy**2)
 
-    fig, ax = plt.subplots(figsize=(8, 3))
+    _standalone = ax is None
+    if _standalone:
+        fig, ax = plt.subplots(figsize=(8, 3))
     tc = ax.tripcolor(x[:, 0], x[:, 1], gdm, mag, shading="gouraud", cmap="viridis")
     plt.colorbar(tc, ax=ax, label="|u|")
     if quiver:
@@ -99,5 +117,6 @@ def plot_vector(u, title="Vector field", quiver=True, quiver_stride=8):
                   color="white", alpha=0.6, width=0.002, scale_units="xy", scale=2.0)
     ax.set_aspect("equal")
     ax.set_title(title)
-    plt.tight_layout()
-    plt.show()
+    if _standalone:
+        plt.tight_layout()
+        plt.show()

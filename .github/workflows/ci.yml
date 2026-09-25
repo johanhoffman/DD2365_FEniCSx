@@ -38,4 +38,5 @@ jobs:
         env:
           MPLBACKEND: Agg
           OMP_NUM_THREADS: "1"
+          DD2365_FAST: "1"
         run: python tools/run_notebooks.py

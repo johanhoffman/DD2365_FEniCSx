@@ -70,8 +70,8 @@ Each notebook embeds reusable code blocks delimited by:
 # --- end canonical: <name> ---
 ```
 
-The source of truth is `canonical/<name>.py`.  Six blocks are currently defined:
-`bootstrap` (v1), `gmsh_rect_minus_circles` (v2), `refine_cells` (v2), `plot_helpers` (v2), `export_xdmf` (v2), `tag_boundaries` (v1).
+The source of truth is `canonical/<name>.py`.  Seven blocks are currently defined:
+`bootstrap` (v1), `gmsh_rect_minus_circles` (v2), `refine_cells` (v2), `plot_helpers` (v2), `export_xdmf` (v2), `tag_boundaries` (v1), `xdmf_series` (v1).
 
 `gmsh_rect_minus_circles v2` uses `lc = 0.65 * sqrt(L²+H²) / resolution`, calibrated to match
 the legacy mshr/CGAL cell count (standard case: 2324 cells vs mshr 2319).
@@ -79,6 +79,7 @@ the legacy mshr/CGAL cell count (standard case: 2324 cells vs mshr 2319).
 `refine_cells v2` accepts either a callable predicate `f(midpoints) -> bool array` or a boolean array over local cells (used by the DWR AMR loop).
 `plot_helpers v2` adds `plot_scalar(f)` and `plot_vector(u)` for Stokes/NS fields.
 `export_xdmf v2` auto-interpolates to P1 before writing (XDMF stores nodal data only).
+`xdmf_series v1` is an `XDMFSeries` class for time-series XDMF output: open once, `write(funcs, t)` per step, `close()`.  Auto-interpolates to P1 and optionally tars+downloads on Colab.
 
 **Facet tagging:** `gmsh_rect_minus_circles` returns only `(msh, cell_tags)`. Call
 `tag_boundaries(msh, L, H)` on the final mesh (after any refinement) to get boundary
@@ -124,7 +125,7 @@ The hook runs automatically on `git commit` and:
 | Navier-Stokes-ALE.ipynb | — | — | — | — |
 | Elasticity.ipynb | — | — | — | — |
 | Brinkman_NSE.ipynb | — | — | — | — |
-| Convection-Diffusion-NSE.ipynb | — | — | — | — |
+| Convection-Diffusion-NSE.ipynb | ✓ | ✓ | — | — |
 | Euler-equations-compressible-flow.ipynb | — | — | — | — |
 | PeriodicBC.ipynb | — | — | — | — |
 | Turbulence-Model.ipynb | — | — | — | — |

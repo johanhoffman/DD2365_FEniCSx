@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Check canonical blocks
+        shell: micromamba-shell {0}
+        run: python tools/check_canonical.py
+
+      - name: Verify notebooks have no outputs committed
+        shell: micromamba-shell {0}
+        run: |
+          for nb in *.ipynb; do
+            nbstripout --verify "$nb" || {
+              echo "FAIL: $nb contains committed outputs. Run nbstripout before committing."
+              exit 1
+            }
+          done
+
+      - name: Run notebooks
+        shell: micromamba-shell {0}
+        env:
+          MPLBACKEND: Agg
+          OMP_NUM_THREADS: "1"
+        run: python tools/run_notebooks.py

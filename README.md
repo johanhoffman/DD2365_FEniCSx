@@ -96,6 +96,20 @@ conda activate fenicsx-0.11
 python tools/run_notebooks.py
 ```
 
+### Git pre-commit hook (recommended)
+
+Install once after cloning:
+
+```bash
+bash tools/install_hooks.sh
+```
+
+The hook runs automatically on `git commit` and:
+1. Verifies all embedded canonical blocks match `canonical/*.py` — aborts if there is drift.
+2. Strips cell outputs and execution counts from staged `*.ipynb` files via `nbstripout` — notebooks are stored clean (no outputs) in the repo.
+
+> **Requirement:** `nbstripout` must be on `PATH` (it is installed in the `fenicsx-0.11` conda env).  To install in any other environment: `pip install nbstripout`.
+
 ---
 
 ## Porting status
@@ -122,6 +136,7 @@ python tools/run_notebooks.py
 
 ## Notebook conventions
 
+- **Branch from main:** always `git fetch` and branch from `origin/main` — never from a stale local copy.
 - **Self-contained:** no shared helper module; all imports and function definitions are inside each notebook.
 - **Cell structure:** Abstract / About the code / Set up environment / Introduction / Method / Results / Discussion — matching the legacy notebooks.
 - **Colab badge** links to `main` branch.

@@ -70,11 +70,12 @@ Each notebook embeds reusable code blocks delimited by:
 ```
 
 The source of truth is `canonical/<name>.py`.  Six blocks are currently defined:
-`bootstrap` (v1), `gmsh_rect_minus_circles` (v2), `refine_cells` (v1), `plot_helpers` (v2), `export_xdmf` (v2), `tag_boundaries` (v1).
+`bootstrap` (v1), `gmsh_rect_minus_circles` (v2), `refine_cells` (v2), `plot_helpers` (v2), `export_xdmf` (v2), `tag_boundaries` (v1).
 
 `gmsh_rect_minus_circles v2` uses `lc = 0.65 * sqrt(L²+H²) / resolution`, calibrated to match
 the legacy mshr/CGAL cell count (standard case: 2324 cells vs mshr 2319).
 
+`refine_cells v2` accepts either a callable predicate `f(midpoints) -> bool array` or a boolean array over local cells (used by the DWR AMR loop).
 `plot_helpers v2` adds `plot_scalar(f)` and `plot_vector(u)` for Stokes/NS fields.
 `export_xdmf v2` auto-interpolates to P1 before writing (XDMF stores nodal data only).
 
@@ -95,6 +96,20 @@ conda activate fenicsx-0.11
 python tools/run_notebooks.py
 ```
 
+### Git pre-commit hook (recommended)
+
+Install once after cloning:
+
+```bash
+bash tools/install_hooks.sh
+```
+
+The hook runs automatically on `git commit` and:
+1. Verifies all embedded canonical blocks match `canonical/*.py` — aborts if there is drift.
+2. Strips cell outputs and execution counts from staged `*.ipynb` files via `nbstripout` — notebooks are stored clean (no outputs) in the repo.
+
+> **Requirement:** `nbstripout` must be on `PATH` (it is installed in the `fenicsx-0.11` conda env).  To install in any other environment: `pip install nbstripout`.
+
 ---
 
 ## Porting status
@@ -103,8 +118,8 @@ python tools/run_notebooks.py
 |----------|:------:|:---------:|:---------:|:-------------------:|
 | Poisson_equation.ipynb | ✓ | ✓ | — | — |
 | template-report-Stokes.ipynb | ✓ | ✓ | — | — |
+| template-report-Stokes-AMR.ipynb | ✓ | ✓ | — | — |
 | Navier-Stokes.ipynb | — | — | — | — |
-| Stokes-AMR.ipynb | — | — | — | — |
 | Navier-Stokes-ALE.ipynb | — | — | — | — |
 | Elasticity.ipynb | — | — | — | — |
 | Brinkman_NSE.ipynb | — | — | — | — |
@@ -121,6 +136,7 @@ python tools/run_notebooks.py
 
 ## Notebook conventions
 
+- **Branch from main:** always `git fetch` and branch from `origin/main` — never from a stale local copy.
 - **Self-contained:** no shared helper module; all imports and function definitions are inside each notebook.
 - **Cell structure:** Abstract / About the code / Set up environment / Introduction / Method / Results / Discussion — matching the legacy notebooks.
 - **Colab badge** links to `main` branch.

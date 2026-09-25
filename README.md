@@ -18,14 +18,15 @@ Select **Runtime → Run all**.
 
 ### Conda environment (recommended)
 
+An `environment.yml` is provided at the repo root with all pinned dependencies. Create and activate with:
+
 ```bash
-conda create -n fenicsx-0.11 -c conda-forge \
-    fenics-dolfinx=0.11.0 mpich python-gmsh matplotlib jupyter nbclient scipy
+conda env create -f environment.yml   # or: mamba env create -f environment.yml
 conda activate fenicsx-0.11
 jupyter notebook
 ```
 
-**Exact versions (recorded 2026-09-24):**
+**Pinned versions:**
 
 | Package    | Version     |
 |------------|-------------|

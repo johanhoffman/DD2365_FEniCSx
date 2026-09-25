@@ -1,0 +1,13 @@
+name: fenicsx-0.11
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - fenics-dolfinx=0.11.0
+  - mpich
+  - python-gmsh
+  - matplotlib
+  - nbclient
+  - ipykernel
+  - scipy
+  - nbstripout

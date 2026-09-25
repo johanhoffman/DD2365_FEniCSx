@@ -8,6 +8,10 @@ Usage:
     python tools/run_notebooks.py            # run all *.ipynb at repo root
     python tools/run_notebooks.py Poisson*   # run matching notebooks
 
+DD2365_FAST mode:
+    Set DD2365_FAST=1 to inject a small-T override after each notebook's
+    "parameters" cell (T=0.2, plot_freq=2).  Used by CI.
+
 Exit 0 if all pass; nonzero if any fail.
 
 Requires: nbclient, nbformat  (both in the fenicsx-0.11 conda env)
@@ -16,10 +20,10 @@ import sys, os, time, pathlib, argparse
 import nbformat
 from nbclient import NotebookClient
 
-# Non-interactive backend for headless execution — avoids plt.show() warnings
-# and the need for a display.  Notebooks must NOT call matplotlib.use() directly;
-# the backend is set here via the environment so it applies to every kernel.
 os.environ.setdefault("MPLBACKEND", "Agg")
+
+FAST_MODE = os.environ.get("DD2365_FAST", "0") == "1"
+FAST_OVERRIDE_SOURCE = "T = 0.2\nplot_freq = 2\n"
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument(
@@ -41,10 +45,31 @@ if not notebooks:
     print("No notebooks found.")
     sys.exit(0)
 
+
+def inject_fast_override(nb):
+    """Insert a fast-mode override cell after the 'parameters'-tagged cell.
+
+    Finds the last cell whose metadata tags include 'parameters' and inserts
+    a new code cell immediately after it.  If no tagged cell is found the
+    notebook is returned unmodified.
+    """
+    param_idx = None
+    for i, cell in enumerate(nb.cells):
+        if "parameters" in cell.get("metadata", {}).get("tags", []):
+            param_idx = i
+    if param_idx is None:
+        return nb
+    override_cell = nbformat.v4.new_code_cell(source=FAST_OVERRIDE_SOURCE)
+    nb.cells.insert(param_idx + 1, override_cell)
+    return nb
+
+
 results = []
 for nb_path in notebooks:
     with open(nb_path) as f:
         nb = nbformat.read(f, as_version=4)
+    if FAST_MODE:
+        nb = inject_fast_override(nb)
     t0 = time.time()
     try:
         client = NotebookClient(nb, timeout=args.timeout, kernel_name="python3",
@@ -64,10 +89,11 @@ for name, status, elapsed, err in results:
     if status == "PASS":
         n_pass += 1
     elif err:
-        # Print first line of error (keep output short)
         first_line = err.splitlines()[0] if err else ""
         print(f"  Error: {first_line[:100]}")
 
+if FAST_MODE:
+    print("  [DD2365_FAST=1: T=0.2, plot_freq=2 injected]")
 print(f"\n{n_pass}/{len(results)} notebook(s) passed.")
 if n_pass < len(results):
     sys.exit(1)

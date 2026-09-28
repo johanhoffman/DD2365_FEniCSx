@@ -89,8 +89,7 @@ for name, status, elapsed, err in results:
     if status == "PASS":
         n_pass += 1
     elif err:
-        first_line = err.splitlines()[0] if err else ""
-        print(f"  Error: {first_line[:100]}")
+        print(f"  Error: {err[:400]}")
 
 if FAST_MODE:
     print("  [DD2365_FAST=1: T=0.2, plot_freq=2 injected]")

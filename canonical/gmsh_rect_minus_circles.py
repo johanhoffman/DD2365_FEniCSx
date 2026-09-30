@@ -29,8 +29,8 @@ def _mshr_segments(r, L, H, resolution):
     return max(5, round(2.0 * math.pi * r / cs))
 
 
-def gmsh_rect_minus_circles(L, H, circles, resolution, segments=None):
-    """Rectangle [0,L]×[0,H] minus regular-polygon holes (legacy geometry).
+def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
+    """Rectangle [0,L]×[0,H] minus regular-polygon holes.
 
     Parameters
     ----------
@@ -41,10 +41,11 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=None):
     resolution : int
         Mesh density parameter.  Interior mesh size:
             lc = _ALPHA * sqrt(L² + H²) / resolution
-    segments : None or int
-        None  → mshr auto rule (max(5, round(2π·r/cs)), cs from bounding-sphere
-                estimate).  Gives 10 for 4×2 domains and 8 for 4×4.
-        int   → explicit segment count (legacy explicit-segments mode).
+    segments : int or "mshr"
+        Number of polygon sides used to approximate each circle hole.
+        Default 32.  Pass ``"mshr"`` to use the legacy mshr auto-segment
+        rule (max(5, round(2π·r/cs)), cs derived from bounding-sphere
+        estimate), which gives 10 sides for 4×2 domains and 8 for 4×4.
 
     Returns
     -------
@@ -53,19 +54,12 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=None):
 
     Notes
     -----
-    Vertex placement replicates mshr's make_circle:
-        phi_i = 2π·i/n,  i = 0 … n-1  (i=0 at angle 0, CCW)
+    Vertex placement: phi_i = 2π·i/n, i = 0 … n-1 (i=0 at angle 0, CCW).
 
     Mesh sizing: one Distance+Threshold gmsh field per polygon transitions
     from ``edge_len = 2r·sin(π/n)`` right at the polygon boundary (prevents
     Steiner-point insertion on polygon edges) to ``lc`` at distance ``r/2``.
     No MeshSizeMax override; background field is the sole size control.
-
-    CGAL Steiner-point check: edge_len < cs_mshr for all standard cases
-    (e.g. 0.1236 < 0.1258 for 4×2), so legacy CGAL did not insert Steiner
-    points on polygon edges.  Cell-count match: ±1–2% for single-hole cases;
-    Poisson (3 holes) runs ~5% high due to algorithm differences (CGAL
-    Delaunay with shape_bound=0.125 vs gmsh algo=5).
     """
     lc = _ALPHA * math.sqrt(L ** 2 + H ** 2) / resolution
     eps = 1e-6 * max(L, H)
@@ -78,8 +72,12 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=None):
     hole_tags = []
     segs_per_circle = []
     for cx, cy, r in circles:
-        n = (int(segments) if segments is not None
-             else _mshr_segments(r, L, H, resolution))
+        if segments == "mshr":
+            n = _mshr_segments(r, L, H, resolution)
+        elif isinstance(segments, int):
+            n = segments
+        else:
+            raise ValueError(f"segments must be an int or 'mshr', got {segments!r}")
         segs_per_circle.append(n)
         pts = [
             gmsh.model.occ.addPoint(

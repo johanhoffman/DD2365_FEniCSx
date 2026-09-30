@@ -19,6 +19,10 @@ jobs:
           cache-environment: true
           cache-downloads: true
 
+      - name: Register ipykernel
+        shell: micromamba-shell {0}
+        run: python -m ipykernel install --user --name python3
+
       - name: Check canonical blocks
         shell: micromamba-shell {0}
         run: python tools/check_canonical.py

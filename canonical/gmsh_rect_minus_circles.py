@@ -29,7 +29,8 @@ def _mshr_segments(r, L, H, resolution):
     return max(5, round(2.0 * math.pi * r / cs))
 
 
-def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
+def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32,
+                             dist_min=None, dist_max=None):
     """Rectangle [0,L]×[0,H] minus regular-polygon holes.
 
     Parameters
@@ -46,6 +47,12 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
         Default 32.  Pass ``"mshr"`` to use the legacy mshr auto-segment
         rule (max(5, round(2π·r/cs)), cs derived from bounding-sphere
         estimate), which gives 10 sides for 4×2 domains and 8 for 4×4.
+    dist_min : float or None
+        Threshold DistMin per hole (inner boundary of transition zone).
+        Default None → 0.0 (fine zone starts at the polygon surface).
+    dist_max : float or None
+        Threshold DistMax per hole (outer boundary of transition zone).
+        Default None → r/2 per hole (reproduces v5 behaviour exactly).
 
     Returns
     -------
@@ -58,8 +65,9 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
 
     Mesh sizing: one Distance+Threshold gmsh field per polygon transitions
     from ``edge_len = 2r·sin(π/n)`` right at the polygon boundary (prevents
-    Steiner-point insertion on polygon edges) to ``lc`` at distance ``r/2``.
-    No MeshSizeMax override; background field is the sole size control.
+    Steiner-point insertion on polygon edges) to ``lc`` at distance
+    ``dist_max`` (default r/2).  No MeshSizeMax override; background field
+    is the sole size control.
     """
     lc = _ALPHA * math.sqrt(L ** 2 + H ** 2) / resolution
     eps = 1e-6 * max(L, H)
@@ -120,6 +128,9 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
         if not c_curves:
             continue
 
+        dm_min = 0.0 if dist_min is None else dist_min
+        dm_max = r / 2.0 if dist_max is None else dist_max
+
         d_id = 10 + 2 * i
         t_id = 11 + 2 * i
         gmsh.model.mesh.field.add("Distance", d_id)
@@ -127,11 +138,11 @@ def gmsh_rect_minus_circles(L, H, circles, resolution, segments=32):
         gmsh.model.mesh.field.add("Threshold", t_id)
         gmsh.model.mesh.field.setNumber(t_id, "InField", d_id)
         # SizeMin = edge_len at polygon: prevents subdivision of polygon edges.
-        # SizeMax = lc at distance r/2: interior mesh size.
+        # SizeMax = lc at dist_max: interior mesh size.
         gmsh.model.mesh.field.setNumber(t_id, "SizeMin", edge_len)
         gmsh.model.mesh.field.setNumber(t_id, "SizeMax", lc)
-        gmsh.model.mesh.field.setNumber(t_id, "DistMin", 0.0)
-        gmsh.model.mesh.field.setNumber(t_id, "DistMax", r / 2.0)
+        gmsh.model.mesh.field.setNumber(t_id, "DistMin", dm_min)
+        gmsh.model.mesh.field.setNumber(t_id, "DistMax", dm_max)
         bg_fields.append(t_id)
 
     if bg_fields:

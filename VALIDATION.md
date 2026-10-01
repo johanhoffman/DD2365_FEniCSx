@@ -144,3 +144,52 @@ The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) 
 |---|---|---|
 | dt×2 | dt = h_cyl (instead of 0.5·h_cyl) | no meaningful improvement in C_L; rejected |
 | steady-d1 | d1 = h/\|u\| (instead of standard) | unstable at L2; rejected |
+
+---
+
+### Turbulence-Model.ipynb
+
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1  
+**Port date:** 2026-10-01  
+**Domain:** L=6, H=4, cylinder (1.5, 2.0, r=0.3), resolution=64, no_levels=0, ν=4×10⁻³  
+**Scheme:** GLS P1/P1, fractional step, 5 nonlinear iterations per step, dt=0.5·hmin  
+**Stabilization:** d1=4/√(1/dt²+|u|²/h²), d2=2h|u|; Smagorinsky C_t=1e-2; skin friction α=C_α/h, C_α=100 on cylinder tag 5  
+**Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
+
+#### Legacy → FEniCSx diff table
+
+| Item | Legacy (FEniCS/mshr) | FEniCSx 0.11 |
+|---|---|---|
+| Library | dolfin 2019 + mshr | dolfinx 0.11.0 |
+| Mesh | `generate_mesh(Rectangle−Circle, 64)` | `gmsh_rect_minus_circles v6`, res=64 |
+| Spaces | `VectorFunctionSpace("P",1)` / `FunctionSpace("P",1)` | `basix.ufl.element("Lagrange",...,shape=(2,))` |
+| Assemble | `assemble()` + `solve(..., "bicgstab", "default")` | `assemble_matrix/vector`, PETSc KSP bicgs+ILU / bicgs+boomeramg |
+| BC API | `DirichletBC(V.sub(i), val, subdomain)` | `locate_dofs_topological + dirichletbc` |
+| BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, dbc_left)` | `_bc(V.sub(0), 1.0, tag=1)` |
+| BC: u_y=0 inlet | `DirichletBC(V.sub(1), 0.0, dbc_left)` | `_bc(V.sub(1), 0.0, tag=1)` |
+| BC: u_y=0 upper | `DirichletBC(V.sub(1), 0.0, dbc_upper)` | `_bc(V.sub(1), 0.0, tag=4)` |
+| BC: u_y=0 lower | `DirichletBC(V.sub(1), 0.0, dbc_lower)` | `_bc(V.sub(1), 0.0, tag=3)` |
+| BC: cylinder | none (skin friction penalty) | none (skin friction penalty) |
+| BC: p=0 outlet | `DirichletBC(Q, 0.0, dbc_right)` | `_bc(Q, 0.0, tag=2)` |
+| d1 | `4.0/sqrt(pow(1/dt,2)+pow(\|u\|/h,2))` | `4.0/ufl.sqrt((1/dt_c)²+(u_mag/h_c)²)` |
+| d2 | `2.0*h*u_mag` | `2.0*h_c*u_mag` |
+| Smagorinsky | `C_t*h²*sqrt(inner(grad um1,grad um1))*inner(grad um,grad v)*dx` | same (UFL) |
+| Skin friction | `alpha*inner(dot(um,n),dot(v,n))*ds(5)` | same (UFL, `ds_m(5)`) |
+| Force | volume form inside nonlinear loop, psi on cyl dofs | same |
+| Triple decomp | `TensorFunctionSpace("P",1)` + `vertex_to_dof_map` | `functionspace shape=(2,2)` + `fem.Expression` + `interpolation_points` (property) |
+| `new_grad` | `np.zeros((3,3))` float (fixed) | `np.zeros((3,3))` float |
+| Plots | FEniCS built-in `plot()` | `plot_scalar / plot_vector` (plot_helpers v3) |
+| XDMF output | `XDMFFile` write-per-step | `xdmf_series v1` |
+| no_levels | 0 | 0 |
+
+#### QoIs at T=2 (no legacy reference; FEniCS/mshr cannot run on current system)
+
+| Quantity | FEniCSx (P1/P1, bicgs+ILU) |
+|---|---|
+| ‖u1‖ | 5.069609 |
+| ‖p1‖ | 0.759397 |
+| cells | 11348 |
+| dt | 0.024364 |
+| steps | 82 |
+| full-T=10 wall | 77.5 s (serial, M5; concurrent with ST L3) |
+

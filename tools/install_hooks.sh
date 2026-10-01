@@ -4,9 +4,10 @@
 # Run once from the repo root:
 #   bash tools/install_hooks.sh
 #
-# The hook runs two checks on every commit:
+# The hook runs three checks on every commit:
 #   1. check_canonical.py — verifies notebook canonical blocks match canonical/*.py
-#   2. nbstripout         — strips outputs/metadata from staged *.ipynb files
+#   2. check_badges.py    — verifies all Colab badge URLs point to blob/main/<path>
+#   3. nbstripout         — strips outputs/metadata from staged *.ipynb files
 #      (notebooks are committed without outputs; run `jupyter nbconvert --to notebook
 #       --execute` or `tools/run_notebooks.py` to regenerate outputs locally)
 #
@@ -43,7 +44,15 @@ if git diff --cached --name-only | grep -q '\.ipynb\$'; then
     }
 fi
 
-# 2. Strip outputs from staged *.ipynb files
+# 2. Verify badge URLs in staged notebooks
+if git diff --cached --name-only | grep -q '\.ipynb\$'; then
+    python3 "\$REPO_ROOT/tools/check_badges.py" || {
+        echo "ABORT: badge URL mismatch. Fix badges to blob/main/<path> before committing."
+        exit 1
+    }
+fi
+
+# 3. Strip outputs from staged *.ipynb files
 STAGED_NBS=\$(git diff --cached --name-only --diff-filter=ACM | grep '\.ipynb\$' || true)
 if [ -n "\$STAGED_NBS" ]; then
     for nb in \$STAGED_NBS; do

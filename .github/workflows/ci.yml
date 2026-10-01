@@ -27,6 +27,10 @@ jobs:
         shell: micromamba-shell {0}
         run: python tools/check_canonical.py
 
+      - name: Check badge URLs
+        shell: micromamba-shell {0}
+        run: python tools/check_badges.py
+
       - name: Verify notebooks have no outputs committed
         shell: micromamba-shell {0}
         run: |

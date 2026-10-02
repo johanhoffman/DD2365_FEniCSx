@@ -200,14 +200,28 @@ The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) 
 | XDMF output | `XDMFFile` write-per-step | `xdmf_series v1` |
 | no_levels | 0 | 0 |
 
-#### QoIs at T=2 (no legacy reference; FEniCS/mshr cannot run on current system)
+#### QoIs at T=2
 
-| Quantity | FEniCSx (P1/P1, bicgs+ILU) |
-|---|---|
-| ‖u1‖ | 5.069609 |
-| ‖p1‖ | 0.759397 |
-| cells | 11348 |
-| dt | 0.024364 |
-| steps | 82 |
-| full-T=10 wall | 77.5 s (serial, M5; concurrent with ST L3) |
+| Quantity | FEniCSx port | Legacy FEniCS | diff |
+|---|---|---|---|
+| ‖u1‖ | 5.069609 | 5.059144 | +0.21% |
+| ‖p1‖ | 0.759397 | 0.709063 | +7.1% |
+| cells | 11348 | — | — |
+| dt | 0.024364 | — | — |
+| steps | 82 | — | — |
+| full-T=10 wall | 77.5 s (serial, M5) | — | — |
+
+Velocity agrees to 0.21% of legacy. Pressure differs ~7% from legacy at T=2; dt ruled out (legacy-dt run: ||p1||=0.758601, 0.1% change); mesh sensitivity demonstrated (scratch tests below).
+
+#### Mesh sensitivity scratch tests (report only, T=2)
+
+| run | segments | resolution | ‖u1‖ | ‖p1‖ | cells | dt | Δ‖p1‖ vs default |
+|---|---|---|---|---|---|---|---|
+| default | 32 | 64 | 5.069609 | 0.759397 | 11348 | 0.024364 | — |
+| (a) mshr segs | 19 | 64 | 5.068824 | 0.752327 | 11265 | 0.025679 | −0.9% |
+| (b) res=90 | 32 | 90 | 5.064803 | 0.734759 | 22278 | 0.016498 | −3.2% |
+| legacy (ref) | ~19 (mshr) | ~64 | 5.059144 | 0.709063 | — | — | — |
+
+(a) mshr segments=19 vs default 32: pressure changes only 0.9% → polygon approximation is not the main factor.  
+(b) resolution=90 vs default 64: pressure changes 3.2% — mesh sensitivity demonstrated at this resolution range. The additional ~4% gap between (b) and legacy is consistent with the different mesh generators (gmsh graded vs mshr Delaunay) producing different effective near-cylinder refinement.
 

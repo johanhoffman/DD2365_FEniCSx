@@ -277,7 +277,8 @@ With phi=(1,0) and corrected +g sign: normalized drag at T=2 = **+0.016764** > 0
 ### template-report-Navier-Stokes-ALE
 
 Legacy: `DD2365/template-report-Navier-Stokes-ALE.ipynb` (FEniCS 2019.1, mshr)  
-Port: `DD2365_FEniCSx/template-report-Navier-Stokes-ALE.ipynb` (dolfinx 0.11.0, gmsh)
+Port v1 (PR \#19): `DD2365_FEniCSx/template-report-Navier-Stokes-ALE.ipynb` (dolfinx 0.11.0, gmsh)  
+Port v2 (ale-elasticity): physics fixes + VTKFile output (see below)
 
 #### Authorized deviation
 
@@ -285,40 +286,80 @@ Legacy prescribes absolute mesh displacement `w(x,t)` and calls `ALE.move(mesh,w
 Port prescribes mesh velocity `beta(x,t)` directly and moves the mesh incrementally by `dt*beta` each step.  
 Equivalence: `V_y = amp_y / legacy_dt = 0.01 / 0.032855 ≈ 0.30`.
 
-#### Diff table
+#### Diff table (v2 — ale-elasticity)
 
-| Feature | Legacy FEniCS | FEniCSx port |
+| Feature | Legacy FEniCS | FEniCSx port v2 |
 |---|---|---|
 | Mesh API | `mshr.generate_mesh` | `gmsh_rect_minus_circles v6` |
 | BC API | `DirichletBC` | `locate_dofs_topological + dirichletbc` |
 | BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, ...)` | `_bc_vel(uin, 0, V0, left_f)` |
 | BC: u_y=0 upper/lower | `DirichletBC(V.sub(i), 0.0, ...)` | slip (u_y=0) |
 | BC: p=0 outlet | `DirichletBC(Q, 0.0, dbc_right)` | same |
+| BC: cylinder | `DirichletBC(V.sub(i), beta_i, ...)` (split) | `dirichletbc(beta_u, locate_dofs_topological(V,fdim,obj_f))` (one vector BC, authorized) |
 | Mesh motion | absolute displacement `w`, `ALE.move(mesh,w)` | mesh velocity `beta`, incremental `dt*beta` (authorized) |
-| ALE form | `(um1 - w/dt)` as convection velocity | `(um1 - beta_u)` as convection velocity |
-| Force | volume form, psi on cyl dofs (Expression) | psi on both V.sub(0) and V.sub(1) via collapse |
-| Force form | absolute fluid velocity (not ALE-relative) | same |
+| ALE form convection | `(um1 - w/dt)` | `(um1 - beta_u)` (consistent with Fu) |
+| Force convection | absolute fluid velocity (not ALE-relative) | `(um1 - beta_u)` (authorized, ALE-consistent) |
+| Force psi | Expression on cyl dofs | psi on both V.sub(0) and V.sub(1) via collapse |
 | d1 | `1/sqrt(1/dt²+\|u\|²/h²)` | same (UFL) |
+| XDMF output | `XDMFFile` | `dolfinx.io.VTKFile` (PVD per function; captures moving geometry) |
 | Min cell vol | not checked | checked each plot step; min > 0 enforced |
+
+#### VTK geometry verification
+
+Scratch run (T=2): max geometry diff between write 1 (t=0.0196) and write 2 (t=0.0392) = **0.00587922 > 0** ✓ — mesh motion is captured in PVD output.
 
 #### QoIs at T=2
 
-| Quantity | FEniCSx port | notes |
-|---|---|---|
-| ‖u1‖ | 2.963259 | — |
-| ‖p1‖ | 0.425732 | — |
-| cells | 2492 | — | 
-| dt | 0.019603 | — |
-| steps | 102 | — |
-| min cell vol | 4.58e−4 | > 0 throughout ✓ |
+| Quantity | v1 (PR \#19) | v2 (ale-elasticity) | notes |
+|---|---|---|---|
+| ‖u1‖ | 2.963259 | 2.947439 | −0.5% from force/BC physics fix |
+| ‖p1‖ | 0.425732 | 0.440773 | +3.5% |
+| cells | 2492 | 2492 | — |
+| dt | 0.019603 | 0.019603 | — |
+| steps | 102 | 102 | — |
+| min cell vol | 4.58e−4 | 4.58e−4 | > 0 throughout ✓ |
 
-#### QoIs at T=30
+#### QoIs at T=30 (v2)
+
+| Quantity | FEniCSx port v2 |
+|---|---|
+| ‖u1‖ | 3.025436 |
+| ‖p1‖ | 0.590812 |
+| steps | 1530 |
+| min cell vol (run min) | 4.46e−4 |
+| wall (serial, M5) | 54.6 s |
+| force range t∈[15,30] | min=1.465754, max=2.130500 |
+
+---
+
+### template-report-Elasticity
+
+New notebook (no legacy FEniCS counterpart — first port).  
+Port: `DD2365_FEniCSx/template-report-Elasticity.ipynb` (dolfinx 0.11.0, gmsh)
+
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3  
+**Domain:** L=4, H=2, three circles: (1.5, 0.5, 0.2), (0.5, 1.0, 0.2), (2.0, 1.5, 0.2), resolution=32, no_levels=0  
+**Spaces:** P1 vector (Lagrange deg=1, shape=(2,)) for displacement `d`  
+**Material:** E=1e10, ν=0.3, μ=E·0.5/(1+ν), λ=ν·E/((1+ν)(1−2ν))  
+**BCs:** outer walls (tags 1–4): u=0; objects (tag 5): u_x=0.5, u_y=0  
+**Solver:** CG + BoomerAMG (SPD system; legacy: bicgstab/default)  
+**Mesh move:** displacement d applied to geometry via dofmap→geometry mapping (same as NS-ALE)
+
+#### Diff table
+
+| Feature | Legacy (no counterpart) | FEniCSx port |
+|---|---|---|
+| Library | n/a | dolfinx 0.11.0 |
+| Mesh | n/a | `gmsh_rect_minus_circles v6`, res=32 |
+| Spaces | n/a | P1 vector `basix.ufl.element("Lagrange",...,shape=(2,))` |
+| KSP | n/a | CG + BoomerAMG (SPD) |
+| Mesh move | n/a | dof→geometry map (same as NS-ALE `move_mesh`) |
+
+#### QoIs
 
 | Quantity | FEniCSx port |
 |---|---|
-| ‖u1‖ | 3.020811 |
-| ‖p1‖ | 0.631989 |
-| steps | 1530 |
-| min cell vol (run min) | 4.46e−4 |
-| wall (serial, M5) | 54.2 s |
+| ‖d‖ | 0.657501 |
+| cells | 2640 |
+| min cell vol (deformed) | 1.57e−4 |
 

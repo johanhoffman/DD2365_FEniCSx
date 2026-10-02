@@ -87,6 +87,24 @@ No numeric QoI comparison records.
 
 ---
 
+### Brinkman_NSE.ipynb
+
+**Canonical blocks:** bootstrap v1, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-01 (PR \#16); time_step v1 added 2026-10-02 (PR \#17)  
+**CI validated:** 2026-10-02  
+**Domain:** L=4, H=1, rectangular mesh (no holes), resolution=16, ν=1e-2, ν_eff=1e-2  
+**Scheme:** GLS P1/P1, fractional step, dt=time_step(msh,1.0)=0.5·hmin
+
+| Quantity | FEniCSx port | Legacy FEniCS | diff |
+|---|---|---|---|
+| ‖u1‖ at T=2 | 1.917224 | 1.917183 | +0.002% |
+| ‖p1‖ at T=2 | 3.358306 | 3.356012 | +0.068% |
+| cells | 2048 | — | — |
+| dt | 0.044194 | — | — |
+| steps | 45 | — | — |
+
+---
+
 ## Verification — Schäfer-Turek 2D-1
 
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
@@ -144,3 +162,66 @@ The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) 
 |---|---|---|
 | dt×2 | dt = h_cyl (instead of 0.5·h_cyl) | no meaningful improvement in C_L; rejected |
 | steady-d1 | d1 = h/\|u\| (instead of standard) | unstable at L2; rejected |
+
+---
+
+### Turbulence-Model.ipynb
+
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-01 (PR \#17); projection + force-sampling corrections 2026-10-02  
+**Domain:** L=6, H=4, cylinder (1.5, 2.0, r=0.3), resolution=64, no_levels=0, ν=4×10⁻³  
+**Scheme:** GLS P1/P1, fractional step, 5 nonlinear iterations per step, dt=time_step(msh,1.0)=0.5·hmin  
+**Stabilization:** d1=4/√(1/dt²+|u|²/h²), d2=2h|u|; Smagorinsky C_t=1e-2; skin friction α=C_α/h, C_α=100 on cylinder tag 5  
+**Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
+
+#### Legacy → FEniCSx diff table
+
+| Item | Legacy (FEniCS/mshr) | FEniCSx 0.11 |
+|---|---|---|
+| Library | dolfin 2019 + mshr | dolfinx 0.11.0 |
+| Mesh | `generate_mesh(Rectangle−Circle, 64)` | `gmsh_rect_minus_circles v6`, res=64 |
+| Spaces | `VectorFunctionSpace("P",1)` / `FunctionSpace("P",1)` | `basix.ufl.element("Lagrange",...,shape=(2,))` |
+| Assemble | `assemble()` + `solve(..., "bicgstab", "default")` | `assemble_matrix/vector`, PETSc KSP bicgs+ILU / bicgs+boomeramg |
+| BC API | `DirichletBC(V.sub(i), val, subdomain)` | `locate_dofs_topological + dirichletbc` |
+| BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, dbc_left)` | `_bc(V.sub(0), 1.0, tag=1)` |
+| BC: u_y=0 inlet | `DirichletBC(V.sub(1), 0.0, dbc_left)` | `_bc(V.sub(1), 0.0, tag=1)` |
+| BC: u_y=0 upper | `DirichletBC(V.sub(1), 0.0, dbc_upper)` | `_bc(V.sub(1), 0.0, tag=4)` |
+| BC: u_y=0 lower | `DirichletBC(V.sub(1), 0.0, dbc_lower)` | `_bc(V.sub(1), 0.0, tag=3)` |
+| BC: cylinder | none (skin friction penalty) | none (skin friction penalty) |
+| BC: p=0 outlet | `DirichletBC(Q, 0.0, dbc_right)` | `_bc(Q, 0.0, tag=2)` |
+| d1 | `4.0/sqrt(pow(1/dt,2)+pow(\|u\|/h,2))` | `4.0/ufl.sqrt((1/dt_c)²+(u_mag/h_c)²)` |
+| d2 | `2.0*h*u_mag` | `2.0*h_c*u_mag` |
+| Smagorinsky | `C_t*h²*sqrt(inner(grad um1,grad um1))*inner(grad um,grad v)*dx` | same (UFL) |
+| Skin friction | `alpha*inner(dot(um,n),dot(v,n))*ds(5)` | same (UFL, `ds_m(5)`) |
+| Force | volume form inside nonlinear loop (5× per step), psi on cyl dofs | volume form, psi on cyl dofs; sampled once per step after nonlinear convergence (authorized deviation, same as template-report-Navier-Stokes) |
+| Triple decomp | `TensorFunctionSpace("P",1)` + `vertex_to_dof_map` | L2 projection via `_project_comp` (same as template-report-Navier-Stokes) |
+| `new_grad` | `np.zeros((3,3))` float (fixed) | `np.zeros((3,3))` float |
+| Plots | FEniCS built-in `plot()` | `plot_scalar / plot_vector` (plot_helpers v3) |
+| XDMF output | `XDMFFile` write-per-step | `xdmf_series v1` |
+| no_levels | 0 | 0 |
+
+#### QoIs at T=2
+
+| Quantity | FEniCSx port | Legacy FEniCS | diff |
+|---|---|---|---|
+| ‖u1‖ | 5.069609 | 5.059144 | +0.21% |
+| ‖p1‖ | 0.759397 | 0.709063 | +7.1% |
+| cells | 11348 | — | — |
+| dt | 0.024364 | — | — |
+| steps | 82 | — | — |
+| full-T=10 wall | 77.5 s (serial, M5) | — | — |
+
+Velocity agrees to 0.21% of legacy. Pressure differs ~7% from legacy at T=2; dt ruled out (legacy-dt run: ||p1||=0.758601, 0.1% change); mesh sensitivity demonstrated (scratch tests below).
+
+#### Mesh sensitivity scratch tests (report only, T=2)
+
+| run | segments | resolution | ‖u1‖ | ‖p1‖ | cells | dt | Δ‖p1‖ vs default |
+|---|---|---|---|---|---|---|---|
+| default | 32 | 64 | 5.069609 | 0.759397 | 11348 | 0.024364 | — |
+| (a) mshr segs | 19 | 64 | 5.068824 | 0.752327 | 11265 | 0.025679 | −0.9% |
+| (b) res=90 | 32 | 90 | 5.064803 | 0.734759 | 22278 | 0.016498 | −3.2% |
+| legacy (ref) | ~19 (mshr) | ~64 | 5.059144 | 0.709063 | — | — | — |
+
+(a) mshr segments=19 vs default 32: pressure changes only 0.9% → polygon approximation is not the main factor.  
+(b) resolution=90 vs default 64: pressure changes 3.2% — mesh sensitivity demonstrated at this resolution range. The additional ~4% gap between (b) and legacy is consistent with the different mesh generators (gmsh graded vs mshr Delaunay) producing different effective near-cylinder refinement.
+

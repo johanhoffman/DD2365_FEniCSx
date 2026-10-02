@@ -424,3 +424,59 @@ The +1.1% deviation from the analytic erfc solution is consistent with ~3 cells 
 | wall (serial, M5) | 340.8 s |
 
 At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial condition).
+
+---
+
+### Euler-equations-compressible-flow.ipynb
+
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-02 (PR port-euler-compressible)  
+**Domain:** L=5, H=4, cylinder (1.5, 2.0, r=0.2), MD=0.4, resolution=64, no\_levels=0  
+**Physics:** γ=1.4, R=287 J/(kg·K), c\_v=717.5 J/(kg·K), ρ\_fs=1.225 kg/m³, T\_fs=290 K, u\_fs=500 m/s, M\_fs=1.465 (supersonic)  
+**Scheme:** compressible Euler, fractional step (density→momentum→energy), 5 nonlinear iterations per step, α\_dt=0.7, dt=time\_step(msh, u\_in+c\_in, C\_CFL=1.0)  
+**Stabilization:** GLS shock-capturing ν\_r/ν\_m/ν\_E; penalty α=C\_α/h, C\_α=100 on cylinder (tag 5)  
+**Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
+
+#### Legacy → FEniCSx diff table
+
+| Item | Legacy (FEniCS/mshr) | FEniCSx 0.11 |
+|---|---|---|
+| Library | dolfin 2019 + mshr | dolfinx 0.11.0 |
+| Mesh | `generate_mesh(Rectangle−Circle, 64)` | `gmsh_rect_minus_circles v6`, res=64 |
+| Spaces | `FunctionSpace("Lagrange",1)` / `VectorFunctionSpace("Lagrange",1)` | `basix.ufl.element("Lagrange",…)` P1 scalar/vector |
+| Assemble/solve | `assemble(a)` + `solve(A, x, b, "bicgstab", "default")` | `assemble_matrix/vector`, PETSc KSP gmres+ILU |
+| BC API | `SubDomain.inside` + `DirichletBC` | `locate_dofs_topological + dirichletbc` |
+| BC: ρ, m, E inlet | `DirichletBC({R,V,Q}, val, dbc_left)` | `_bc({R,V.sub(i),Q}, val, tag=1)` |
+| BC: m\_y=0 upper/lower | `DirichletBC(V.sub(1), 0.0, dbc_upper/lower)` | `_bc(V.sub(1), 0.0, tag=4/3)` |
+| BC: supersonic outlet | m\_x omitted from bcm (M>1: no outlet BC) | same |
+| Slip cylinder | commented out | commented out |
+| Penalty cylinder | `alpha/h * inner(m,v)*ds(objects)` | same (UFL, `ds_m(5)`) |
+| Shock-capturing | ν\_r/ν\_m/ν\_E GLS residual-based | same (UFL) |
+| Force | volume form inside nonlinear loop (5× per step), psi\_x=1 only | volume form; psi on both x and y; sampled once per step after nonlinear convergence (authorized deviation) |
+| Plots | FEniCS built-in `plot()` | `plot_scalar / plot_vector` (plot_helpers v3) |
+| XDMF output | `pvd` files | `xdmf_series v1` |
+
+#### QoIs at T=2
+
+| Quantity | FEniCSx port | Legacy FEniCS | diff |
+|---|---|---|---|
+| ‖r1‖ | 4.659178 | — | — |
+| ‖m1‖ | 6.401654 | — | — |
+| ‖E1‖ | 13.433038 | — | — |
+| min r1 | 0.095271 | — | — |
+| cells | 12002 | — | — |
+| dt | 0.015858 | — | — |
+| steps | 126 | — | — |
+
+#### QoIs at T=10
+
+| Quantity | FEniCSx port |
+|---|---|
+| ‖r1‖ | 5.673437 |
+| ‖m1‖ | 6.377824 |
+| ‖E1‖ | 15.878744 |
+| min r1 | 0.423410 |
+| steps | 630 |
+| wall (serial, M5) | 116.3 s |
+
+Legacy QoI comparison not available: legacy notebook stores no numeric outputs (FEniCS `plot()` only); nondimensionalization is identical across implementations.

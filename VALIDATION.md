@@ -225,3 +225,51 @@ Velocity agrees to 0.21% of legacy. Pressure differs ~7% from legacy at T=2; dt 
 (a) mshr segments=19 vs default 32: pressure changes only 0.9% → polygon approximation is not the main factor.  
 (b) resolution=90 vs default 64: pressure changes 3.2% — mesh sensitivity demonstrated at this resolution range. The additional ~4% gap between (b) and legacy is consistent with the different mesh generators (gmsh graded vs mshr Delaunay) producing different effective near-cylinder refinement.
 
+---
+
+### Shallow-Water-Equations.ipynb
+
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-02 (PR \#18)  
+**CI validated:** 2026-10-02  
+**Domain:** L=4, H=2, cylinder (1.0, 1.0, r=0.2), resolution=32, ν=inviscid (no viscosity term), g=1  
+**Scheme:** GLS/SUPG P1/P1, fractional step, 5 nonlinear iterations per step, dt=time_step(msh,1.0)=0.5·hmin  
+**Stabilization:** d1=2/√(1/dt²+|u|²/h²), d2=h|u| (defined, not used in forms)  
+**BCs:** u_x=1, u_y=0 at inflow; u_y=0 at upper/lower walls (slip); u_x=u_y=0 on cylinder (no-slip); w=|sin(t)| at inflow  
+**Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
+
+#### QoIs
+
+| Quantity | T=2 | T=30 (full run) |
+|---|---|---|
+| ‖u1‖ | 2.287703 | 2.656588 |
+| ‖w1‖ | 1.599269 | 2.039469 |
+| cells | 2492 | 2492 |
+| dt | 0.019603 | 0.019603 |
+| steps | 102 | 1530 |
+| wall | — | 32.4 s (serial, M5) |
+
+No legacy reference values (FEniCS/mshr cannot run on current system).
+
+#### Legacy → FEniCSx diff table
+
+| Item | Legacy (FEniCS/mshr) | FEniCSx 0.11 |
+|---|---|---|
+| Library | dolfin 2019 + mshr | dolfinx 0.11.0 |
+| Mesh | `generate_mesh(Rectangle−Circle, 32)` | `gmsh_rect_minus_circles v6`, res=32 |
+| Spaces | `VectorFunctionSpace("Lagrange",1)` / `FunctionSpace("Lagrange",1)` | `basix.ufl.element("Lagrange",...,shape=(2,))` |
+| Assemble | `assemble()` + `solve(...,"bicgstab","default")` | `assemble_matrix/vector`, PETSc KSP bcgs+ILU / bcgs+BoomerAMG |
+| BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, dbc_left)` | `_bc(V.sub(0), 1.0, tag=1)` |
+| BC: u_y=0 inlet | `DirichletBC(V.sub(1), 0.0, dbc_left)` | `_bc(V.sub(1), 0.0, tag=1)` |
+| BC: u_y=0 upper | `DirichletBC(V.sub(1), 0.0, dbc_upper)` | `_bc(V.sub(1), 0.0, tag=4)` |
+| BC: u_y=0 lower | `DirichletBC(V.sub(1), 0.0, dbc_lower)` | `_bc(V.sub(1), 0.0, tag=3)` |
+| BC: u_x=0 cylinder | `DirichletBC(V.sub(0), 0.0, dbc_objects)` | `_bc(V.sub(0), 0.0, tag=5)` |
+| BC: u_y=0 cylinder | `DirichletBC(V.sub(1), 0.0, dbc_objects)` | `_bc(V.sub(1), 0.0, tag=5)` |
+| BC: w=\|sin(t)\| inlet | `DirichletBC(Q, win, dbc_left)`, `win.t=t` | `Constant w_in`; `w_in.value=abs(math.sin(t))` each step |
+| d1 | `2/sqrt(1/dt²+\|u\|²/h²)` | `2/sqrt((1/dt_c)²+(u_mag/h_c)²)` |
+| d2 | `h*u_mag` (defined, not used) | same (defined, not used) |
+| dt | `0.5*mesh.hmin()` | `time_step(msh,1.0)=0.5·hmin` |
+| Force | volume form inside nonlinear loop (5× per step) | volume form; sampled once per step after convergence (authorized deviation) |
+| Plots | FEniCS built-in `plot()` | `plot_vector / plot_scalar` (plot_helpers v3) |
+| XDMF output | `File("...pvd")` write-per-step | `xdmf_series v1` |
+

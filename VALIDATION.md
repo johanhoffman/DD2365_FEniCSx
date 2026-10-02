@@ -363,3 +363,60 @@ Port: `DD2365_FEniCSx/template-report-Elasticity.ipynb` (dolfinx 0.11.0, gmsh)
 | cells | 2640 |
 | min cell vol (deformed) | 1.57e−4 |
 
+---
+
+### PeriodicBC.ipynb
+
+Legacy: `DD2365/PeriodicBC.ipynb` (FEniCS 2019.1, `constrained_domain`)  
+Port: `DD2365_FEniCSx/PeriodicBC.ipynb` (dolfinx 0.11.0, algebraic restriction)
+
+**Canonical blocks:** bootstrap v1, periodic_restriction v1, time_step v1, plot_helpers v3, xdmf_series v1  
+**Domain:** L=2, H=1, structured rectangle `create_rectangle` 64×32 cells, `DiagonalType.right`  
+**Spaces:** P1 vector (velocity) + P1 scalar (pressure), both periodic in x  
+**BCs:** u=(−1,0) at y=0; u=(+1,0) at y=H; x-periodicity via restriction matrix  
+**Solver:** bcgs+ILU (velocity), bcgs+BoomerAMG (pressure); reduced system via P^T A P (MatPtAP)  
+**Pressure regularization:** d3 = 1e−4·hmin (mass term; no Dirichlet pressure BC)
+
+#### Authorized deviation
+
+Legacy uses `constrained_domain=PeriodicBoundary()` (FEniCS built-in). DOLFINx has no native periodic BC support. Port implements periodicity via hand-built restriction matrix P (n\_full × n\_red), which algebraically identifies right-boundary DOFs with left-boundary DOFs. The reduced system P^T A P x\_r = P^T b is assembled by `ptap` (PETSc MatPtAP) each nonlinear iteration and solved in the reduced space; full solution recovered by P x\_r.
+
+#### Diff table
+
+| Feature | Legacy FEniCS | FEniCSx port |
+|---|---|---|
+| Mesh | `RectangleMesh(Point(0,0),Point(L,H),64,32)` | `create_rectangle(...,DiagonalType.right)` |
+| Spaces | `VectorFunctionSpace(...,constrained_domain=PB)` | `functionspace(msh,P1v)` + periodic restriction |
+| Periodic BC | `PeriodicBoundary` + `constrained_domain` | restriction matrix P (n\_full × n\_red); `ptap` per iter |
+| Dirichlet BCs | `DirichletBC(V,(−1,0),lower)` etc. | applied in reduced system via `zeroRowsColumns` |
+| Assemble | `assemble(au); bc.apply(Au,bu)` | `assemble_matrix(A_u,...,bcs=[])`; `reduce_system`; `apply_dirichlet_reduced` |
+| KSP | `solve(Au,u1,bu,"bicgstab","default")` | bcgs+ILU (vel), bcgs+BoomerAMG (press) |
+| d1, d2 | constant then overridden by residual form | residual-based UFL (what is actually used) |
+| d3 | `1e-4*mesh.hmin()` | `1e-4*hmin` (Constant) |
+| XDMF output | `File("results-Euler/u.pvd")` | `xdmf_series v1` (authorized deviation) |
+
+#### Scratch checks (serial, Apple Silicon M5)
+
+Periodicity at T=2: max\|u(0,y)−u(L,y)\| = **0.00e+00** (exact, by construction) ✓  
+Pressure periodicity: max\|p(0,y)−p(L,y)\| = **0.00e+00** ✓  
+x-independence at T=2: max variation of u\_x along x-lines = **3.0e−6** (floating-point noise) ✓
+
+#### QoIs at T=2
+
+| Quantity | FEniCSx port | notes |
+|---|---|---|
+| ‖u1‖ | 0.347487 | — |
+| ‖p1‖ | 0.000000 | Couette flow: no pressure gradient |
+| cells | 4096 | — |
+| dt | 0.011049 | 0.25·hmin |
+| steps | 181 | — |
+| wall (serial, M5) | 8.5 s | — |
+
+#### QoIs at T=80
+
+| Quantity | FEniCSx port |
+|---|---|
+| ‖u1‖ | 0.795775 |
+| ‖p1‖ | 0.000000 |
+| steps | 7240 |
+| wall (serial, M5) | 340.8 s |

@@ -87,6 +87,24 @@ No numeric QoI comparison records.
 
 ---
 
+### Brinkman_NSE.ipynb
+
+**Canonical blocks:** bootstrap v1, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-01 (PR \#16); time_step v1 added 2026-10-02 (PR \#17)  
+**CI validated:** 2026-10-02  
+**Domain:** L=4, H=1, rectangular mesh (no holes), resolution=16, ν=1e-2, ν_eff=1e-2  
+**Scheme:** GLS P1/P1, fractional step, dt=time_step(msh,1.0)=0.5·hmin
+
+| Quantity | FEniCSx port | Legacy FEniCS | diff |
+|---|---|---|---|
+| ‖u1‖ at T=2 | 1.917224 | 1.917183 | +0.002% |
+| ‖p1‖ at T=2 | 3.358306 | 3.356012 | +0.068% |
+| cells | 2048 | — | — |
+| dt | 0.044194 | — | — |
+| steps | 45 | — | — |
+
+---
+
 ## Verification — Schäfer-Turek 2D-1
 
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
@@ -149,10 +167,10 @@ The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) 
 
 ### Turbulence-Model.ipynb
 
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1  
-**Port date:** 2026-10-01  
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Port date:** 2026-10-01 (PR \#17); projection + force-sampling corrections 2026-10-02  
 **Domain:** L=6, H=4, cylinder (1.5, 2.0, r=0.3), resolution=64, no_levels=0, ν=4×10⁻³  
-**Scheme:** GLS P1/P1, fractional step, 5 nonlinear iterations per step, dt=0.5·hmin  
+**Scheme:** GLS P1/P1, fractional step, 5 nonlinear iterations per step, dt=time_step(msh,1.0)=0.5·hmin  
 **Stabilization:** d1=4/√(1/dt²+|u|²/h²), d2=2h|u|; Smagorinsky C_t=1e-2; skin friction α=C_α/h, C_α=100 on cylinder tag 5  
 **Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
 
@@ -175,8 +193,8 @@ The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) 
 | d2 | `2.0*h*u_mag` | `2.0*h_c*u_mag` |
 | Smagorinsky | `C_t*h²*sqrt(inner(grad um1,grad um1))*inner(grad um,grad v)*dx` | same (UFL) |
 | Skin friction | `alpha*inner(dot(um,n),dot(v,n))*ds(5)` | same (UFL, `ds_m(5)`) |
-| Force | volume form inside nonlinear loop, psi on cyl dofs | same |
-| Triple decomp | `TensorFunctionSpace("P",1)` + `vertex_to_dof_map` | `functionspace shape=(2,2)` + `fem.Expression` + `interpolation_points` (property) |
+| Force | volume form inside nonlinear loop (5× per step), psi on cyl dofs | volume form, psi on cyl dofs; sampled once per step after nonlinear convergence (authorized deviation, same as template-report-Navier-Stokes) |
+| Triple decomp | `TensorFunctionSpace("P",1)` + `vertex_to_dof_map` | L2 projection via `_project_comp` (same as template-report-Navier-Stokes) |
 | `new_grad` | `np.zeros((3,3))` float (fixed) | `np.zeros((3,3))` float |
 | Plots | FEniCS built-in `plot()` | `plot_scalar / plot_vector` (plot_helpers v3) |
 | XDMF output | `XDMFFile` write-per-step | `xdmf_series v1` |

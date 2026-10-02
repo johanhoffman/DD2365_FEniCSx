@@ -44,15 +44,6 @@ def periodic_restriction(V, x_target, x_source, tol=1e-12):
     n_nodes = coords.shape[0]
     n_full  = n_nodes * bs
 
-    # Build per-component maps: maps[c][node] -> full scalar dof index
-    if bs == 1:
-        maps = [np.arange(n_nodes, dtype=np.int64)]
-    else:
-        maps = []
-        for c in range(bs):
-            _, mc = V.sub(c).collapse()
-            maps.append(np.array(mc, dtype=np.int64).ravel())
-
     # Identify source nodes (x ≈ x_source) and target nodes (x ≈ x_target)
     src_idx = np.where(np.abs(coords[:, 0] - x_source) < tol)[0]
     tgt_idx = np.where(np.abs(coords[:, 0] - x_target) < tol)[0]
@@ -81,11 +72,11 @@ def periodic_restriction(V, x_target, x_source, tol=1e-12):
         node_to_red[s] = node_to_red[t]          # source shares target's reduced index
     n_red = r * bs
 
-    # Map every full scalar dof to its reduced dof
+    # Map every full scalar dof to its reduced dof (blocked layout: dof nd*bs+c is node nd, component c)
     full_to_red = np.empty(n_full, dtype=np.int64)
-    for comp, mp in enumerate(maps):
-        for nd in range(n_nodes):
-            full_to_red[int(mp[nd])] = node_to_red[nd] * bs + comp
+    for nd in range(n_nodes):
+        for comp in range(bs):
+            full_to_red[nd * bs + comp] = node_to_red[nd] * bs + comp
 
     # Build P: one nonzero per row
     P = PETSc.Mat().createAIJ([n_full, n_red], nnz=1, comm=PETSc.COMM_SELF)

@@ -370,7 +370,7 @@ Port: `DD2365_FEniCSx/template-report-Elasticity.ipynb` (dolfinx 0.11.0, gmsh)
 Legacy: `DD2365/PeriodicBC.ipynb` (FEniCS 2019.1, `constrained_domain`)  
 Port: `DD2365_FEniCSx/PeriodicBC.ipynb` (dolfinx 0.11.0, algebraic restriction)
 
-**Canonical blocks:** bootstrap v1, periodic_restriction v1, time_step v1, plot_helpers v3, xdmf_series v1  
+**Canonical blocks:** bootstrap v1, periodic_restriction v2, time_step v1, plot_helpers v3, xdmf_series v1  
 **Domain:** L=2, H=1, structured rectangle `create_rectangle` 64×32 cells, `DiagonalType.right`  
 **Spaces:** P1 vector (velocity) + P1 scalar (pressure), both periodic in x  
 **BCs:** u=(−1,0) at y=0; u=(+1,0) at y=H; x-periodicity via restriction matrix  
@@ -403,14 +403,16 @@ x-independence at T=2: max variation of u\_x along x-lines = **3.0e−6** (float
 
 #### QoIs at T=2
 
-| Quantity | FEniCSx port | notes |
-|---|---|---|
-| ‖u1‖ | 0.347487 | — |
-| ‖p1‖ | 0.000000 | Couette flow: no pressure gradient |
-| cells | 4096 | — |
-| dt | 0.011049 | 0.25·hmin |
-| steps | 181 | — |
-| wall (serial, M5) | 8.5 s | — |
+| Quantity | FEniCSx port | Legacy FEniCS | diff | Analytic (erfc) | diff |
+|---|---|---|---|---|---|
+| ‖u1‖ | 0.347487 | 0.3474876 | 0.001% | 0.3439 | +1.1% |
+| ‖p1‖ | 0.000000 | — | — | 0 | ✓ |
+| cells | 4096 | — | — | — | — |
+| dt | 0.011049 | — | — | — | — |
+| steps | 181 | — | — | — | — |
+| wall (serial, M5) | 8.5 s | — | — | — | — |
+
+The +1.1% deviation from the analytic erfc solution is consistent with ~3 cells per wall boundary layer at this resolution.
 
 #### QoIs at T=80
 
@@ -420,3 +422,5 @@ x-independence at T=2: max variation of u\_x along x-lines = **3.0e−6** (float
 | ‖p1‖ | 0.000000 |
 | steps | 7240 |
 | wall (serial, M5) | 340.8 s |
+
+At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial condition).

@@ -225,3 +225,100 @@ Velocity agrees to 0.21% of legacy. Pressure differs ~7% from legacy at T=2; dt 
 (a) mshr segments=19 vs default 32: pressure changes only 0.9% → polygon approximation is not the main factor.  
 (b) resolution=90 vs default 64: pressure changes 3.2% — mesh sensitivity demonstrated at this resolution range. The additional ~4% gap between (b) and legacy is consistent with the different mesh generators (gmsh graded vs mshr Delaunay) producing different effective near-cylinder refinement.
 
+---
+
+### Shallow-Water-Equations
+
+Legacy: `DD2365/Shallow-Water-Equations.ipynb` (FEniCS 2019.1, mshr)  
+Port: `DD2365_FEniCSx/Shallow-Water-Equations.ipynb` (dolfinx 0.11.0, gmsh)
+
+#### Diff table
+
+| Feature | Legacy FEniCS | FEniCSx port |
+|---|---|---|
+| Mesh API | `mshr.generate_mesh` | `gmsh_rect_minus_circles v6` |
+| BC API | `DirichletBC(V.sub(i), val, subdomain)` | `locate_dofs_topological + dirichletbc` |
+| BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, dbc_left)` | `_bc(V.sub(0), 1.0, tag=1)` |
+| BC: u_y=0 inlet | `DirichletBC(V.sub(1), 0.0, dbc_left)` | `_bc(V.sub(1), 0.0, tag=1)` |
+| BC: u_y=0 upper/lower | slip | slip |
+| BC: no-slip cylinder | `DirichletBC` | `_bc(V.sub(i), 0.0, tag=5)` |
+| BC: w inlet | `DirichletBC(Q, \|sin(t)\|, dbc_left)` | `Constant w_in` updated each step |
+| d1 | `2/sqrt(1/dt²+\|u\|²/h²)` | same (UFL) |
+| Force | volume form, psi on cyl dofs (V.sub(1) only in legacy) | psi on both components V.sub(0) and V.sub(1) |
+| Force sign | `−g·inner(grad(wm1),psi)·dx` (bug) | `+g·inner(grad(wm1),psi)·dx` (corrected) |
+| Force sampling | inside nonlinear loop | once per step after nonlinear convergence (authorized deviation) |
+
+#### Scratch check: force sign (T=2, phi=(1,0) drag)
+
+With phi=(1,0) and corrected +g sign: normalized drag at T=2 = **+0.016764** > 0 ✓  
+(legacy −g sign would give −0.016764, i.e., negative drag — physically wrong)
+
+#### QoIs at T=2
+
+| Quantity | FEniCSx port | Legacy | diff |
+|---|---|---|---|
+| ‖u1‖ | 2.287703 | — | — |
+| ‖w1‖ | 1.599269 | — | — |
+| cells | 2492 | — | — |
+| dt | 0.019603 | — | — |
+| steps | 102 | — | — |
+
+#### QoIs at T=30
+
+| Quantity | FEniCSx port |
+|---|---|
+| ‖u1‖ | 2.656588 |
+| ‖w1‖ | 2.039469 |
+| steps | 1530 |
+| wall (serial, M5) | 32.4 s |
+
+---
+
+### template-report-Navier-Stokes-ALE
+
+Legacy: `DD2365/template-report-Navier-Stokes-ALE.ipynb` (FEniCS 2019.1, mshr)  
+Port: `DD2365_FEniCSx/template-report-Navier-Stokes-ALE.ipynb` (dolfinx 0.11.0, gmsh)
+
+#### Authorized deviation
+
+Legacy prescribes absolute mesh displacement `w(x,t)` and calls `ALE.move(mesh,w)`.  
+Port prescribes mesh velocity `beta(x,t)` directly and moves the mesh incrementally by `dt*beta` each step.  
+Equivalence: `V_y = amp_y / legacy_dt = 0.01 / 0.032855 ≈ 0.30`.
+
+#### Diff table
+
+| Feature | Legacy FEniCS | FEniCSx port |
+|---|---|---|
+| Mesh API | `mshr.generate_mesh` | `gmsh_rect_minus_circles v6` |
+| BC API | `DirichletBC` | `locate_dofs_topological + dirichletbc` |
+| BC: u_x=1 inlet | `DirichletBC(V.sub(0), 1.0, ...)` | `_bc_vel(uin, 0, V0, left_f)` |
+| BC: u_y=0 upper/lower | `DirichletBC(V.sub(i), 0.0, ...)` | slip (u_y=0) |
+| BC: p=0 outlet | `DirichletBC(Q, 0.0, dbc_right)` | same |
+| Mesh motion | absolute displacement `w`, `ALE.move(mesh,w)` | mesh velocity `beta`, incremental `dt*beta` (authorized) |
+| ALE form | `(um1 - w/dt)` as convection velocity | `(um1 - beta_u)` as convection velocity |
+| Force | volume form, psi on cyl dofs (Expression) | psi on both V.sub(0) and V.sub(1) via collapse |
+| Force form | absolute fluid velocity (not ALE-relative) | same |
+| d1 | `1/sqrt(1/dt²+\|u\|²/h²)` | same (UFL) |
+| Min cell vol | not checked | checked each plot step; min > 0 enforced |
+
+#### QoIs at T=2
+
+| Quantity | FEniCSx port | notes |
+|---|---|---|
+| ‖u1‖ | 2.963259 | — |
+| ‖p1‖ | 0.425732 | — |
+| cells | 2492 | — | 
+| dt | 0.019603 | — |
+| steps | 102 | — |
+| min cell vol | 4.58e−4 | > 0 throughout ✓ |
+
+#### QoIs at T=30
+
+| Quantity | FEniCSx port |
+|---|---|
+| ‖u1‖ | 3.020811 |
+| ‖p1‖ | 0.631989 |
+| steps | 1530 |
+| min cell vol (run min) | 4.46e−4 |
+| wall (serial, M5) | 54.2 s |
+

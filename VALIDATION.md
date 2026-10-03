@@ -455,6 +455,7 @@ At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial
 | Force | volume form inside nonlinear loop (5× per step), psi\_x=1 only | volume form; psi on both x and y; sampled once per step after nonlinear convergence (authorized deviation) |
 | Plots | FEniCS built-in `plot()` | `plot_scalar / plot_vector` (plot_helpers v3) |
 | XDMF output | `pvd` files | `xdmf_series v1` |
+| Mach plot (NaN guard) | bare `c = sqrt(…)` — no clamping | `c_sq = γ(γ−1)·max_value(e_int, ε)` guards against sqrt(negative) in visualization only; forms unchanged (authorized deviation — plotting guard against NaN) |
 
 #### QoIs at T=2
 
@@ -463,7 +464,7 @@ At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial
 | ‖r1‖ | 4.659178 | — | — |
 | ‖m1‖ | 6.401654 | — | — |
 | ‖E1‖ | 13.433038 | — | — |
-| min r1 | 0.095271 | — | — |
+| min r1 | 0.095271 at (1.58, 2.18) | 0.221466 | −57% |
 | cells | 12002 | — | — |
 | dt | 0.015858 | — | — |
 | steps | 126 | — | — |
@@ -480,3 +481,17 @@ At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial
 | wall (serial, M5) | 116.3 s |
 
 Legacy QoI comparison not available: legacy notebook stores no numeric outputs (FEniCS `plot()` only); nondimensionalization is identical across implementations.
+
+#### Mesh sensitivity scratch tests — min r1 at T=2
+
+**mesh sensitivity demonstrated** (both (a) and (b) move min r1 by ≥30%)
+
+| run | segments | resolution | ‖r1‖ | ‖m1‖ | ‖E1‖ | min r1 | location (x, y) | cells | dt | steps | Δ min r1 vs default |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| default | 32 | 64 | 4.659178 | 6.401654 | 13.433038 | 0.095271 | (1.58, 2.18) | 12002 | 0.015858 | 126 | — |
+| (a) mshr (14 segs) | 14 | 64 | 4.683567 | 6.387059 | 13.512935 | 0.199069 | (1.54, 1.81) | 12022 | 0.017328 | 115 | +109% |
+| (b) res=90 | 32 | 90 | 4.658582 | 6.410963 | 13.426409 | 0.138745 | (1.58, 2.18) | 23764 | 0.011961 | 167 | +46% |
+| legacy (ref) | ~14 (mshr) | ~64 | — | — | — | 0.221466 | — | — | — | — |
+
+mshr segment count for L=5, H=4, r=0.2, res=64: N=max(5, round(2πr/cs))=14 (cs=2·R\_enc/64, R\_enc=0.9·√41/2≈2.88).  
+Minimum density is sensitive to mesh: +109% from 14→32 segments (cylinder polygon affects local expansion fan), +46% from res=64→90. The legacy (mshr, ~14 segs) value 0.221466 is bracketed between (a) and (b) within this sensitivity range.

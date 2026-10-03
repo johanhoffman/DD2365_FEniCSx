@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+"""Generate verification/mms-stokes.ipynb."""
+import json, pathlib, sys
+
+REPO = pathlib.Path(__file__).parent.parent
+sys.path.insert(0, str(REPO))
+
+import nbformat
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def mc(src):
+    return nbformat.v4.new_markdown_cell(src)
+
+def cc(src, tags=None):
+    c = nbformat.v4.new_code_cell(src)
+    if tags:
+        c["metadata"]["tags"] = tags
+    return c
+
+def can_src(name, ver):
+    p = REPO / "canonical" / f"{name}.py"
+    body = p.read_text()
+    return f"# --- canonical: {name} v{ver} ---\n{body}# --- end canonical: {name} ---"
+
+
+# ── cells ─────────────────────────────────────────────────────────────────────
+
+cells = []
+
+cells.append(mc(
+    "# MMS Stokes — Method of Manufactured Solutions\n\n"
+    "**Stokes equations on the unit square**: −νΔu + ∇p = f, div u = 0, ν = 1.\n\n"
+    "**Manufactured solution**:\n"
+    "- Stream function ψ = sin²(πx)sin²(πy) + x²y\n"
+    "- u_x = ∂ψ/∂y = π·sin²(πx)·sin(2πy) + x²\n"
+    "- u_y = −∂ψ/∂x = −π·sin(2πx)·sin²(πy) − 2xy\n"
+    "- p = cos(πx)sin(πy)  (zero mean on [0,1]²)\n\n"
+    "**Scheme**: Taylor-Hood P2/P1, weak-penalty BC γ = C/h, residual form + Newton,\n"
+    "structured triangular meshes N×N, N = 8, 16, 32, 64, 128.\n\n"
+    "**Reference rates**: ‖u‖_L2 → 3, ‖u‖_H1 → 2, ‖p‖_L2 → 2 (optimal for TH P2/P1)."
+))
+
+cells.append(cc(can_src("bootstrap", 1)))
+
+cells.append(cc(
+    "import os, math\n"
+    "import numpy as np\n"
+    "from mpi4py import MPI\n"
+    "import ufl\n"
+    "from petsc4py import PETSc\n"
+    "from dolfinx.mesh import create_unit_square, CellType\n"
+    "from dolfinx.fem import (\n"
+    "    functionspace, Function, Constant, form, assemble_scalar,\n"
+    ")\n"
+    "from dolfinx.fem.petsc import NonlinearProblem\n"
+    "import basix.ufl as bufl\n"
+))
+
+cells.append(cc(
+    "import os\n"
+    "N_list = [8, 16] if os.environ.get('DD2365_FAST') == '1' else [8, 16, 32, 64, 128]\n"
+    "C_penalty = 1e3\n",
+    tags=["parameters"]
+))
+
+cells.append(mc(
+    "## Manufactured solution\n\n"
+    "Stream function ψ = sin²(πx)sin²(πy) + x²y\n\n"
+    "Velocity (divergence-free by construction):\n"
+    "  u_x = π sin²(πx) sin(2πy) + x²\n"
+    "  u_y = −π sin(2πx) sin²(πy) − 2xy\n\n"
+    "Pressure: p = cos(πx)sin(πy)  (zero mean over [0,1]²)\n\n"
+    "Body force f = −Δu + ∇p (computed analytically below)."
+))
+
+cells.append(cc(
+    "def u_ex_fn(x):\n"
+    "    pi = np.pi\n"
+    "    ux = pi * np.sin(pi*x[0])**2 * np.sin(2*pi*x[1]) + x[0]**2\n"
+    "    uy = -pi * np.sin(2*pi*x[0]) * np.sin(pi*x[1])**2 - 2*x[0]*x[1]\n"
+    "    return np.vstack([ux, uy])\n"
+    "\n"
+    "def p_ex_fn(x):\n"
+    "    return np.cos(np.pi*x[0]) * np.sin(np.pi*x[1])\n"
+    "\n"
+    "def f_fn(x):\n"
+    "    \"\"\"Body force f = -∆u + ∇p.\"\"\"\n"
+    "    pi = np.pi\n"
+    "    # f_x = -∆u_x + ∂p/∂x\n"
+    "    # ∆u_x = 2π³ sin(2πy)(2cos(2πx)−1) + 2\n"
+    "    lap_ux = 2*pi**3 * np.sin(2*pi*x[1]) * (2*np.cos(2*pi*x[0]) - 1) + 2.0\n"
+    "    dp_dx  = -pi * np.sin(pi*x[0]) * np.sin(pi*x[1])\n"
+    "    fx = -lap_ux + dp_dx\n"
+    "    # f_y = -∆u_y + ∂p/∂y\n"
+    "    # ∆u_y = 2π³ sin(2πx)(4sin²(πy)−1)\n"
+    "    lap_uy = 2*pi**3 * np.sin(2*pi*x[0]) * (4*np.sin(pi*x[1])**2 - 1)\n"
+    "    dp_dy  =  pi * np.cos(pi*x[0]) * np.cos(pi*x[1])\n"
+    "    fy = -lap_uy + dp_dy\n"
+    "    return np.vstack([fx, fy])\n"
+    "\n"
+    "# Verify divergence = 0 at a few interior points\n"
+    "import numpy as np\n"
+    "_pts = np.array([[0.3, 0.4, 0.0], [0.7, 0.2, 0.0], [0.5, 0.5, 0.0]])\n"
+    "_u = u_ex_fn(_pts.T)   # shape (2, 3)\n"
+    "h = 1e-7\n"
+    "_dux_dx = (u_ex_fn((_pts + [h,0,0]).T)[0] - u_ex_fn((_pts - [h,0,0]).T)[0]) / (2*h)\n"
+    "_duy_dy = (u_ex_fn((_pts + [0,h,0]).T)[1] - u_ex_fn((_pts - [0,h,0]).T)[1]) / (2*h)\n"
+    "print('Divergence check (max |div u|):', np.max(np.abs(_dux_dx + _duy_dy)))\n"
+    "_pmean = np.mean(p_ex_fn(np.random.uniform(0,1,(3,1000))))\n"
+    "print('Pressure mean check (approx):', abs(_pmean))\n"
+))
+
+cells.append(mc(
+    "## Convergence study  (C = {C_penalty})\n\n"
+    "Stokes residual form:\n\n"
+    "    F((u,p);(v,q)) = ∫ν·∇u:∇v dx − ∫p·div(v) dx + ∫div(u)·q dx\n"
+    "                   + γ∫(u−g)·v ds − ∫f·v dx = 0\n\n"
+    "Solved with NonlinearProblem + NewtonSolver (1 Newton step — linear problem)."
+))
+
+cells.append(cc(
+    "def run_stokes(N_list, C):\n"
+    "    \"\"\"Stokes MMS convergence study. Returns list of result dicts.\"\"\"\n"
+    "    results = []\n"
+    "    for N in N_list:\n"
+    "        msh = create_unit_square(MPI.COMM_WORLD, N, N, cell_type=CellType.triangle)\n"
+    "\n"
+    "        # Taylor-Hood P2/P1\n"
+    "        P2v = bufl.element('Lagrange', msh.basix_cell(), 2, shape=(2,))\n"
+    "        P1s = bufl.element('Lagrange', msh.basix_cell(), 1)\n"
+    "        TH  = bufl.mixed_element([P2v, P1s])\n"
+    "        W   = functionspace(msh, TH)\n"
+    "\n"
+    "        w   = Function(W)\n"
+    "        u, p = ufl.split(w)\n"
+    "        v, q = ufl.split(ufl.TestFunction(W))\n"
+    "\n"
+    "        nu    = Constant(msh, PETSc.ScalarType(1.0))\n"
+    "        h_c   = ufl.CellDiameter(msh)\n"
+    "        gamma = Constant(msh, PETSc.ScalarType(C)) / h_c\n"
+    "\n"
+    "        # Collapse sub-spaces for interpolation\n"
+    "        Vc, v_map = W.sub(0).collapse()\n"
+    "        Qc, q_map = W.sub(1).collapse()\n"
+    "\n"
+    "        g_h = Function(Vc);  g_h.interpolate(u_ex_fn)  # velocity BC\n"
+    "        f_h = Function(Vc);  f_h.interpolate(f_fn)\n"
+    "\n"
+    "        # Lift g into mixed space for UFL\n"
+    "        g_W = Function(W)\n"
+    "        g_W.x.array[v_map] = g_h.x.array\n"
+    "        g_W.x.scatter_forward()\n"
+    "        gu, _ = ufl.split(g_W)\n"
+    "\n"
+    "        F = (\n"
+    "            nu * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx\n"
+    "            - p * ufl.div(v) * ufl.dx\n"
+    "            + ufl.div(u) * q * ufl.dx\n"
+    "            + gamma * ufl.inner(u - gu, v) * ufl.ds\n"
+    "            - ufl.inner(f_h, v) * ufl.dx\n"
+    "        )\n"
+    "\n"
+    "        problem = NonlinearProblem(\n"
+    "            F, w,\n"
+    "            petsc_options_prefix='mms_stokes_',\n"
+    "            petsc_options={\n"
+    "                'snes_type': 'newtonls',\n"
+    "                'snes_rtol': 1e-12,\n"
+    "                'snes_atol': 1e-14,\n"
+    "                'ksp_type': 'preonly',\n"
+    "                'pc_type': 'lu',\n"
+    "                'pc_factor_mat_solver_type': 'mumps',\n"
+    "            },\n"
+    "        )\n"
+    "        problem.solve()\n"
+    "        n_iters = problem.solver.getIterationNumber()\n"
+    "\n"
+    "        # Extract velocity and pressure\n"
+    "        u_fn = Function(Vc); u_fn.x.array[:] = w.x.array[v_map]\n"
+    "        p_fn = Function(Qc); p_fn.x.array[:] = w.x.array[q_map]\n"
+    "\n"
+    "        # Zero-mean correct pressure\n"
+    "        vol    = float(msh.comm.allreduce(assemble_scalar(form(\n"
+    "                    Constant(msh, PETSc.ScalarType(1.0))*ufl.dx)), op=MPI.SUM))\n"
+    "        p_mean = float(msh.comm.allreduce(assemble_scalar(form(p_fn*ufl.dx)), op=MPI.SUM)) / vol\n"
+    "        p_fn.x.array[:] -= p_mean\n"
+    "\n"
+    "        # Exact solution functions\n"
+    "        u_ex_h = Function(Vc); u_ex_h.interpolate(u_ex_fn)\n"
+    "        p_ex_h = Function(Qc); p_ex_h.interpolate(p_ex_fn)\n"
+    "\n"
+    "        # Error functions\n"
+    "        eu = Function(Vc); eu.x.array[:] = u_fn.x.array - u_ex_h.x.array\n"
+    "        ep = Function(Qc); ep.x.array[:] = p_fn.x.array - p_ex_h.x.array\n"
+    "\n"
+    "        e_L2_u = math.sqrt(float(msh.comm.allreduce(\n"
+    "            assemble_scalar(form(ufl.inner(eu, eu)*ufl.dx)), op=MPI.SUM)))\n"
+    "        e_H1_u = math.sqrt(float(msh.comm.allreduce(\n"
+    "            assemble_scalar(form(ufl.inner(ufl.grad(eu), ufl.grad(eu))*ufl.dx)), op=MPI.SUM)))\n"
+    "        e_L2_p = math.sqrt(float(msh.comm.allreduce(\n"
+    "            assemble_scalar(form(ep**2 * ufl.dx)), op=MPI.SUM)))\n"
+    "\n"
+    "        h_val = 1.0 / N\n"
+    "        results.append({'N': N, 'h': h_val,\n"
+    "                         'e_L2_u': e_L2_u, 'e_H1_u': e_H1_u, 'e_L2_p': e_L2_p,\n"
+    "                         'iters': n_iters})\n"
+    "        print(f'N={N:4d}  h={h_val:.4f}  ‖u‖_L2={e_L2_u:.4e}  '\n"
+    "              f'‖u‖_H1={e_H1_u:.4e}  ‖p‖_L2={e_L2_p:.4e}  iters={n_iters}')\n"
+    "    return results\n"
+))
+
+cells.append(cc(
+    "print(f'C = {C_penalty:.0e}')\n"
+    "results_default = run_stokes(N_list, C_penalty)\n"
+))
+
+cells.append(mc("### Results table (C = {C_penalty})"))
+
+cells.append(cc(
+    "def print_stokes_table(results, label=''):\n"
+    "    if label:\n"
+    "        print(f'--- {label} ---')\n"
+    "    hdr = ('N'.rjust(6) + '  ' + 'h'.rjust(7) + '  ' +\n"
+    "           '‖u‖_L2'.rjust(12) + '  ' + 'r_L2u'.rjust(6) + '  ' +\n"
+    "           '‖u‖_H1'.rjust(12) + '  ' + 'r_H1u'.rjust(6) + '  ' +\n"
+    "           '‖p‖_L2'.rjust(12) + '  ' + 'r_L2p'.rjust(6))\n"
+    "    print(hdr)\n"
+    "    for i, r in enumerate(results):\n"
+    "        if i == 0:\n"
+    "            rl2u = rh1u = rl2p = '    —'\n"
+    "        else:\n"
+    "            prev = results[i-1]\n"
+    "            rl2u = f'{math.log2(prev[\"e_L2_u\"]/r[\"e_L2_u\"]):6.2f}'\n"
+    "            rh1u = f'{math.log2(prev[\"e_H1_u\"]/r[\"e_H1_u\"]):6.2f}'\n"
+    "            rl2p = f'{math.log2(prev[\"e_L2_p\"]/r[\"e_L2_p\"]):6.2f}'\n"
+    "        print(f\"{r['N']:>6}  {r['h']:>7.4f}  {r['e_L2_u']:>12.4e}  {rl2u}  \"\n"
+    "              f\"{r['e_H1_u']:>12.4e}  {rh1u}  {r['e_L2_p']:>12.4e}  {rl2p}\")\n"
+    "\n"
+    "print_stokes_table(results_default, f'C = {C_penalty:.0e}')\n"
+))
+
+cells.append(mc(
+    "### Penalty sensitivity\n\n"
+    "Re-run at N = {N_list} with C = 1e1 and C = 1e5."
+))
+
+cells.append(cc(
+    "print('\\n=== C = 1e1 ===')\n"
+    "results_c1 = run_stokes(N_list, 1e1)\n"
+    "print('\\n=== C = 1e5 ===')\n"
+    "results_c5 = run_stokes(N_list, 1e5)\n"
+))
+
+cells.append(cc(
+    "print_stokes_table(results_c1, 'C = 1e1')\n"
+    "print()\n"
+    "print_stokes_table(results_c5, 'C = 1e5')\n"
+))
+
+# ── assemble and write ────────────────────────────────────────────────────────
+
+for i, cell in enumerate(cells):
+    cell["id"] = str(i)
+
+nb = nbformat.v4.new_notebook(cells=cells)
+nb["metadata"]["kernelspec"] = {
+    "display_name": "Python 3",
+    "language": "python",
+    "name": "python3",
+}
+nb["metadata"]["language_info"] = {"name": "python", "version": "3.12.0"}
+
+out = REPO / "verification" / "mms-stokes.ipynb"
+out.parent.mkdir(exist_ok=True)
+with open(out, "w") as f:
+    nbformat.write(nb, f)
+print(f"Written: {out}  ({len(cells)} cells)")

@@ -506,28 +506,54 @@ Minimum density is sensitive to mesh: +109% from 14→32 segments (cylinder poly
 **Manufactured solution:** u = sin(πx)sin(πy) + xy (non-zero boundary data); f = 2π²sin(πx)sin(πy)  
 **Scheme:** P1 Lagrange, weak-penalty BC γ=C/h (course formulation: γ·∫(u−g)·v ds), residual form + Newton  
 **Meshes:** unit square N×N, N = 8, 16, 32, 64, 128 (structured triangular)  
+**Error method:** exact UFL SpatialCoordinate expressions; quadrature degree 5 (=2k+3, k=1)  
 **Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
 
 ### P1, C = 1e3 (default)
 
-| N | h | e\_L2 | rate\_L2 | e\_H1 | rate\_H1 |
-|---|---|---|---|---|---|
-| 8 | 0.1250 | 1.7968e-02 | — | 8.4996e-02 | — |
-| 16 | 0.0625 | 4.6088e-03 | 1.96 | 2.1908e-02 | 1.96 |
-| 32 | 0.0312 | 1.1226e-03 | 2.04 | 5.5227e-03 | 1.99 |
-| 64 | 0.0156 | 2.6070e-04 | 2.11 | 1.3867e-03 | 1.99 |
-| 128 | 0.0078 | 5.5767e-05 | 2.22 | 3.5025e-04 | 1.99 |
+| N | h | e\_L2 | r\_L2 | e\_H1 | r\_H1 | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 1.9757e-02 | — | 4.1290e-01 | — | 8.3229e-04 | — |
+| 16 | 0.0625 | 4.9618e-03 | 1.99 | 2.0829e-01 | 0.99 | 4.0809e-04 | 1.03 |
+| 32 | 0.0312 | 1.2093e-03 | 2.04 | 1.0438e-01 | 1.00 | 2.0313e-04 | 1.01 |
+| 64 | 0.0156 | 2.8481e-04 | 2.09 | 5.2223e-02 | 1.00 | 1.0146e-04 | 1.00 |
+| 128 | 0.0078 | 6.3410e-05 | 2.17 | 2.6116e-02 | 1.00 | 5.0719e-05 | 1.00 |
 
-**L2 rate ≈ 2 ✓** (optimal for P1).  
-**H1 rate ≈ 2** (above theoretical 1; superconvergence on structured uniform triangular mesh — not UNEXPLAINED).
+**e\_L2 rate ≈ 2 ✓** (optimal for P1; L2 theory: 2).  
+**e\_H1 rate = 1.00 ✓** (optimal for P1; H1 theory: 1).  
+**e\_bdy rate = 1.00**, scales as 1/C at fixed h (verified across three C values) — consistent with penalty theory.
 
-### Penalty sensitivity
+### P1, C = 1e1
 
-| C | L2 asymptotic rate | H1 asymptotic rate | notes |
-|---|---|---|---|
-| 1e1 | ≈ 1 | ≈ 1 | L2 below optimal 2 — DEMONSTRATED: insufficient penalty locks in O(h) boundary error |
-| 1e3 | 1.96 → 2.22 | ≈ 2.0 | optimal / superconvergent |
-| 1e5 | ≈ 2.0 | ≈ 2.0 | optimal ✓ |
+| N | h | e\_L2 | r\_L2 | e\_H1 | r\_H1 | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 3.1657e-02 | — | 3.9890e-01 | — | 8.1355e-02 | — |
+| 16 | 0.0625 | 1.7909e-02 | 0.82 | 2.0695e-01 | 0.95 | 4.0417e-02 | 1.01 |
+| 32 | 0.0312 | 9.7229e-03 | 0.88 | 1.0514e-01 | 0.98 | 2.0216e-02 | 1.00 |
+| 64 | 0.0156 | 5.0830e-03 | 0.94 | 5.2978e-02 | 0.99 | 1.0121e-02 | 1.00 |
+| 128 | 0.0078 | 2.6003e-03 | 0.97 | 2.6597e-02 | 0.99 | 5.0655e-03 | 1.00 |
+
+e\_L2 asymptotic rate ≈ 1, e\_H1 asymptotic rate ≈ 1 (both below optimal 2/1) — consistent with penalty theory (see below).
+
+### P1, C = 1e5
+
+| N | h | e\_L2 | r\_L2 | e\_H1 | r\_H1 | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 2.0090e-02 | — | 4.1318e-01 | — | 8.3252e-06 | — |
+| 16 | 0.0625 | 5.1182e-03 | 1.97 | 2.0835e-01 | 0.99 | 4.0814e-06 | 1.03 |
+| 32 | 0.0312 | 1.2854e-03 | 1.99 | 1.0440e-01 | 1.00 | 2.0314e-06 | 1.01 |
+| 64 | 0.0156 | 3.2154e-04 | 2.00 | 5.2226e-02 | 1.00 | 1.0146e-06 | 1.00 |
+| 128 | 0.0078 | 8.0313e-05 | 2.00 | 2.6117e-02 | 1.00 | 5.0720e-07 | 1.00 |
+
+e\_L2 rate = 2.00, e\_H1 rate = 1.00 ✓ (optimal for P1).
+
+### Penalty theory check
+
+e\_bdy at h = 0.0156 (N = 64): 1.0121e-02 (C=1e1), 1.0146e-04 (C=1e3), 1.0146e-06 (C=1e5).  
+Ratios: C×100 → e\_bdy×0.01 in both steps. e\_bdy ∝ 1/C at fixed h ✓.  
+e\_bdy ∝ h at fixed C (r\_bdy = 1.00) ✓.  
+Conclusion: e\_bdy ∝ h/C — consistent with penalty theory for γ = C/h.  
+Rates below optimal (C=1e1: L2≈1; C=1e3 H1 at C=1e1) are **consistent with penalty theory**.
 
 ---
 
@@ -537,42 +563,59 @@ Minimum density is sensitive to mesh: +109% from 14→32 segments (cylinder poly
 **Run date:** 2026-10-03  
 **Canonical blocks:** bootstrap v1  
 **Manufactured solution:**  
-  u = (π sin²(πx)sin(2πy) + x², −π sin(2πx)sin²(πy) − 2xy) — divergence-free (from stream function ψ = sin²(πx)sin²(πy) + x²y)  
-  p = cos(πx)sin(πy) − mean (zero mean)  
+  u = (π sin²(πx)sin(2πy) + x², −π sin(2πx)sin²(πy) − 2xy) — divergence-free from stream function ψ = sin²(πx)sin²(πy) + x²y  
+  p = cos(πx)sin(πy) (mean = 0 over [0,1]²)  
 **Scheme:** Taylor-Hood P2/P1, weak-penalty velocity BC γ=C/h (course formulation), residual form + Newton  
 **Meshes:** unit square N×N, N = 8, 16, 32, 64, 128 (structured triangular)  
+**Error method:** exact UFL SpatialCoordinate expressions; quadrature degree 7 (=2k+3, k=2); pressure corrected by subtracting discrete mean of p\_h and exact mean of p\_ex  
 **Run environment:** fenicsx-0.11 conda env, serial, Apple Silicon M5
 
 ### TH P2/P1, C = 1e3 (default)
 
-| N | h | ‖u‖\_L2 | r\_L2u | ‖u‖\_H1 | r\_H1u | ‖p‖\_L2 | r\_L2p |
-|---|---|---|---|---|---|---|---|
-| 8 | 0.1250 | 4.0331e-03 | — | 1.1461e-01 | — | 3.3388e-02 | — |
-| 16 | 0.0625 | 7.0983e-04 | 2.51 | 1.6506e-02 | 2.80 | 3.9644e-03 | 3.07 |
-| 32 | 0.0312 | 4.0432e-04 | 0.81 | 3.0807e-03 | 2.42 | 1.3667e-03 | 1.54 |
-| 64 | 0.0156 | 2.0677e-04 | 0.97 | 1.1786e-03 | 1.39 | 6.3779e-04 | 1.10 |
-| 128 | 0.0078 | 1.0369e-04 | 1.00 | 5.7729e-04 | 1.03 | 3.2017e-04 | 0.99 |
+| N | h | ‖u‖\_L2 | r\_L2u | ‖u‖\_H1 | r\_H1u | ‖p‖\_L2 | r\_L2p | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 1.0447e-02 | — | 6.1597e-01 | — | 2.5013e-02 | — | 4.4683e-03 | — |
+| 16 | 0.0625 | 1.5268e-03 | 2.77 | 1.5869e-01 | 1.96 | 2.6677e-03 | 3.23 | 2.2299e-03 | 1.00 |
+| 32 | 0.0312 | 4.4280e-04 | 1.79 | 4.0052e-02 | 1.99 | 1.2171e-03 | 1.13 | 1.1150e-03 | 1.00 |
+| 64 | 0.0156 | 2.0820e-04 | 1.09 | 1.0085e-02 | 1.99 | 6.2776e-04 | 0.96 | 5.5756e-04 | 1.00 |
+| 128 | 0.0078 | 1.0374e-04 | 1.00 | 2.5717e-03 | 1.97 | 3.2137e-04 | 0.97 | 2.7880e-04 | 1.00 |
 
-**All asymptotic rates ≈ 1** (below TH optimal 3/2/2) — **DEMONSTRATED**: simple penalty with C=1e3 is insufficient to enforce the BC strongly enough for TH; C=1e5 recovers optimal/superconvergent rates (see below). Full Nitsche (consistency + symmetry terms) would achieve optimal rates at moderate C.
+**‖u‖\_H1 rate ≈ 2 ✓** (optimal for TH; H1 theory: 2).  
+**‖u‖\_L2 asymptotic rate ≈ 1** (below optimal 3) — consistent with penalty theory (see below).  
+**‖p‖\_L2 asymptotic rate ≈ 1** (below optimal 2) — consistent with penalty theory.
+
+### TH P2/P1, C = 1e1
+
+| N | h | ‖u‖\_L2 | r\_L2u | ‖u‖\_H1 | r\_H1u | ‖p‖\_L2 | r\_L2p | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 1.5437e-01 | — | 1.0120e+00 | — | 3.1484e-01 | — | 4.1742e-01 | — |
+| 16 | 0.0625 | 7.9940e-02 | 0.95 | 4.5705e-01 | 1.15 | 1.8384e-01 | 0.78 | 2.1538e-01 | 0.95 |
+| 32 | 0.0312 | 4.0703e-02 | 0.97 | 2.2443e-01 | 1.03 | 1.0004e-01 | 0.88 | 1.0954e-01 | 0.98 |
+| 64 | 0.0156 | 2.0544e-02 | 0.99 | 1.1267e-01 | 0.99 | 5.2896e-02 | 0.92 | 5.5255e-02 | 0.99 |
+| 128 | 0.0078 | 1.0322e-02 | 0.99 | 5.6713e-02 | 0.99 | 2.7587e-02 | 0.94 | 2.7753e-02 | 0.99 |
+
+All rates ≈ 1 — consistent with penalty theory.
 
 ### TH P2/P1, C = 1e5
 
-| N | h | ‖u‖\_L2 | r\_L2u | ‖u‖\_H1 | r\_H1u | ‖p‖\_L2 | r\_L2p |
-|---|---|---|---|---|---|---|---|
-| 8 | 0.1250 | 4.7220e-03 | — | 1.1421e-01 | — | 3.6809e-02 | — |
-| 16 | 0.0625 | 3.1479e-04 | 3.91 | 1.5850e-02 | 2.85 | 4.4113e-03 | 3.06 |
-| 32 | 0.0312 | 1.8464e-05 | 4.09 | 2.0568e-03 | 2.95 | 9.1711e-04 | 2.27 |
-| 64 | 0.0156 | 1.7626e-06 | 3.39 | 2.6111e-04 | 2.98 | 2.2437e-04 | 2.03 |
-| 128 | 0.0078 | 9.9697e-07 | 0.82 | 3.3314e-05 | 2.97 | 5.5920e-05 | 2.00 |
+| N | h | ‖u‖\_L2 | r\_L2u | ‖u‖\_H1 | r\_H1u | ‖p‖\_L2 | r\_L2p | e\_bdy | r\_bdy |
+|---|---|---|---|---|---|---|---|---|---|
+| 8 | 0.1250 | 1.0520e-02 | — | 6.1663e-01 | — | 2.8313e-02 | — | 4.4719e-05 | — |
+| 16 | 0.0625 | 1.3305e-03 | 2.98 | 1.5873e-01 | 1.96 | 2.7341e-03 | 3.37 | 2.2308e-05 | 1.00 |
+| 32 | 0.0312 | 1.6710e-04 | 2.99 | 3.9999e-02 | 1.99 | 4.4034e-04 | 2.63 | 1.1152e-05 | 1.00 |
+| 64 | 0.0156 | 2.0999e-05 | 2.99 | 1.0020e-02 | 2.00 | 1.0157e-04 | 2.12 | 5.5762e-06 | 1.00 |
+| 128 | 0.0078 | 2.8080e-06 | 2.90 | 2.5064e-03 | 2.00 | 2.5311e-05 | 2.00 | 2.7881e-06 | 1.00 |
 
-**‖u‖\_H1 rate ≈ 3** (superconvergence on structured mesh; above optimal 2 — not UNEXPLAINED).  
-**‖p‖\_L2 rate = 2.00 ✓** (optimal for TH).  
-**‖u‖\_L2 rate 0.82 at N=128**: machine-precision plateau (~1e-6); not UNEXPLAINED.
+**‖u‖\_L2 rate ≈ 3 ✓** (optimal for TH; L2 theory: 3; rate 2.90 at N=128 is pre-asymptotic).  
+**‖u‖\_H1 rate = 2.00 ✓** (optimal for TH; H1 theory: 2).  
+**‖p‖\_L2 rate = 2.00 ✓** (optimal for TH; pressure theory: 2; early rates above 2 are pre-asymptotic).
 
-### Penalty sensitivity summary
+### Penalty theory check
 
-| C | ‖u‖\_L2 rate | ‖u‖\_H1 rate | ‖p‖\_L2 rate | notes |
-|---|---|---|---|---|
-| 1e1 | ≈ 1 | ≈ 1 | ≈ 1 | under-penalized — DEMONSTRATED |
-| 1e3 | ≈ 1 | ≈ 1 | ≈ 1 | insufficient for TH — DEMONSTRATED (C=1e5 comparison) |
-| 1e5 | → plateau | ≈ 3 (superconv.) | ≈ 2 ✓ | optimal/superconvergent |
+e\_bdy at h = 0.0156 (N = 64): 5.5255e-02 (C=1e1), 5.5756e-04 (C=1e3), 5.5762e-06 (C=1e5).  
+Ratios: C×100 → e\_bdy×0.01 in both steps. e\_bdy ∝ 1/C at fixed h ✓.  
+e\_bdy ∝ h at fixed C (r\_bdy = 1.00 throughout) ✓.  
+Conclusion: e\_bdy ∝ h/C — consistent with penalty theory for γ = C/h.
+
+For C=1e3, ‖u‖\_L2 and ‖p‖\_L2 asymptote to rate 1: the penalty consistency error O(h/C) dominates the Aubin-Nitsche lift (O(h³)) and the pressure error once h < (1/C)^{1/2} ≈ 0.032 (i.e., N ≥ 32). ‖u‖\_H1 remains at rate 2 throughout because the H1 energy-norm crossover (h vs 1/C) occurs at N ≈ 1000.  
+All below-optimal rates are **consistent with penalty theory**. Nitsche's method (Arnold, 1982) adds consistency and symmetry terms to recover optimal rates at moderate C.

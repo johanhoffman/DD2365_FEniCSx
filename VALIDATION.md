@@ -61,6 +61,49 @@ Velocity norms change by ≤1.6% on v5 migration; CI validates all notebooks pas
 
 ---
 
+#### Nitsche BC migration (stokes-amr-nitsche, 2026-10-05)
+
+**Scheme:** symmetric Nitsche C=20 (authorized deviation 2026-10-03); `tot_err` and `E_K` include Nitsche boundary facet residual terms; `J_h = ∫_Γ5 (−σ(u,p)·n + γu)·e_x ds`.
+
+**Smoke test vs penalty baseline (res=32):**
+
+| Quantity | Penalty C=1000 (prior) | Nitsche C=20 (new) | Δ |
+|---|---|---|---|
+| ‖u‖\_L2 | 2.950 | 2.958 | +0.27% |
+| ‖p‖\_L2 | 12.567 | 12.861 | +2.3% |
+| J\_h | — | 19.465 | — |
+| Cells marked | 309 | 275 | −11% |
+| Cells refined | 3945 | 4051 | +2.7% |
+
+Pressure norm increases ≈2%: Nitsche C=20 has more boundary-flux coupling than penalty C=1000.
+
+#### Effectivity study (verification/stokes-amr-effectivity.ipynb, 2026-10-05)
+
+**J\_ref** (Richardson extrapolation from res=64,128; p=1.84): **19.457813**
+
+**Uniform sequence:**
+
+| res | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
+|---|---|---|---|---|---|---|
+| 16 | 842 | 19.487845 | −3.00e-02 | −6.84e-02 | 2.28 | UNEXPLAINED |
+| 32 | 3098 | 19.465002 | −7.19e-03 | −3.52e-02 | 4.90 | UNEXPLAINED |
+| 64 | 12384 | 19.459817 | −2.00e-03 | −8.22e-03 | 4.10 | UNEXPLAINED |
+| 128 | 49260 | 19.458371 | −5.59e-04 | −4.76e-03 | 8.52 | UNEXPLAINED |
+
+**Adaptive sequence** (start res=16, 4 cycles):
+
+| cycle | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
+|---|---|---|---|---|---|---|
+| 0 | 842 | 19.487845 | −3.00e-02 | −6.84e-02 | 2.28 | UNEXPLAINED |
+| 1 | 1253 | 19.489939 | −3.21e-02 | −6.90e-02 | 2.15 | UNEXPLAINED |
+| 2 | 1707 | 19.466998 | −9.19e-03 | −1.25e-02 | 1.37 | UNEXPLAINED |
+| 3 | 2535 | 19.461402 | −3.59e-03 | −6.04e-03 | 1.68 | UNEXPLAINED |
+| 4 | 4117 | 19.460731 | −2.92e-03 | −5.86e-03 | 2.01 | UNEXPLAINED |
+
+**UNEXPLAINED — I\_eff ≠ 1:** the adjoint BC φ=e\_x (Dirichlet) is consistent with the classical traction functional J\_cl = ∫σ·n·e\_x ds, but J\_h is computed as J\_Nitsche = J\_cl + γ∫u\_h·e\_x ds. The mismatch introduces an O(C/h) term that dominates at C=20 and coarse meshes. To recover I\_eff→1: use C=1000 (γu\_h≈0) or redefine J\_h = J\_cl.
+
+---
+
 ### Convection-Diffusion-NSE.ipynb
 
 **Canonical blocks at test time:** bootstrap v1, gmsh_rect_minus_circles v2,

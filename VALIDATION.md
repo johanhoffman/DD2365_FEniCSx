@@ -606,7 +606,7 @@ All rates ≈ 1 — consistent with penalty theory.
 | 64 | 0.0156 | 2.0999e-05 | 2.99 | 1.0020e-02 | 2.00 | 1.0157e-04 | 2.12 | 5.5762e-06 | 1.00 |
 | 128 | 0.0078 | 2.8080e-06 | 2.90 | 2.5064e-03 | 2.00 | 2.5311e-05 | 2.00 | 2.7881e-06 | 1.00 |
 
-**‖u‖\_L2 rate ≈ 3 ✓** (optimal for TH; L2 theory: 3; rate 2.90 at N=128 is pre-asymptotic).  
+**‖u‖\_L2 rate ≈ 3 ✓** (optimal for TH; L2 theory: 3; rate 2.90 at N=128 reflects onset of penalty-limited regime: e\_bdy = 2.79e-6 ≈ ‖u\_h−u\_ex‖\_L2 = 2.81e-6 at N=128, crossover h ~ C^{−1/2} ≈ 3.2×10^{−3}).  
 **‖u‖\_H1 rate = 2.00 ✓** (optimal for TH; H1 theory: 2).  
 **‖p‖\_L2 rate = 2.00 ✓** (optimal for TH; pressure theory: 2; early rates above 2 are pre-asymptotic).
 

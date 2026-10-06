@@ -100,7 +100,31 @@ Pressure norm increases ≈2%: Nitsche C=20 has more boundary-flux coupling than
 | 3 | 2535 | 19.461402 | −3.59e-03 | −6.04e-03 | 1.68 | UNEXPLAINED |
 | 4 | 4117 | 19.460731 | −2.92e-03 | −5.86e-03 | 2.01 | UNEXPLAINED |
 
-**UNEXPLAINED — I\_eff ≠ 1:** the adjoint BC φ=e\_x (Dirichlet) is consistent with the classical traction functional J\_cl = ∫σ·n·e\_x ds, but J\_h is computed as J\_Nitsche = J\_cl + γ∫u\_h·e\_x ds. The mismatch introduces an O(C/h) term that dominates at C=20 and coarse meshes. To recover I\_eff→1: use C=1000 (γu\_h≈0) or redefine J\_h = J\_cl.
+**UNEXPLAINED — I\_eff ≠ 1.** Root cause not yet identified. Three hypotheses tested and ruled out (scratch 2026-10-06):
+
+- *Functional mismatch:* J\_Nitsche = B((v,q),(φ,θ)) is the adjoint-consistent functional (derivation); ruled out.
+- *Adjoint pressure sign:* flipping θ\_h→−θ\_h in tot\_err gives wrong-sign I\_eff at res≥32; ruled out.
+- *Non-uniform mesh geometry:* fixed 128-segment polygon, SizeMin=SizeMax=ℓ\_c (uniform lc, no hole grading); I\_eff≈1.06 at res=16 but diverges 3.73/4.13/4.26 at res=32/64/128; ruled out.
+
+**Candidate A scratch** (2026-10-06, graded geometry, 32 segs, J\_ref=19.457807, p=1.83):
+
+| res | cells | J\_h | I\_orig | I\_{neg θ} |
+|---|---|---|---|---|
+| 16 | 842 | 19.487845 | 2.28 | 1.52 |
+| 32 | 3098 | 19.464968 | 4.91 | −2.68 |
+| 64 | 12386 | 19.459818 | 4.09 | −2.83 |
+| 128 | 49260 | 19.458371 | 8.43 | −7.67 |
+
+**Candidate B scratch** (2026-10-06, 128 segs, uniform lc, J\_ref=19.538414, p=2.61):
+
+| res | cells | h\_cyl | J\_h | J\_ref−J\_h | I\_eff |
+|---|---|---|---|---|---|
+| 16 | 992 | 0.0450 | 19.558274 | −1.99e-02 | 1.06 |
+| 32 | 3304 | 0.0311 | 19.543168 | −4.75e-03 | 3.73 |
+| 64 | 12474 | 0.0213 | 19.539194 | −7.79e-04 | 4.13 |
+| 128 | 49392 | 0.0162 | 19.538542 | −1.28e-04 | 4.26 |
+
+Note: J\_ref\_B ≠ J\_ref\_A because 128-segment polygon ≠ 32-segment polygon (different circle approximations).
 
 ---
 

@@ -77,54 +77,49 @@ Velocity norms change by ≤1.6% on v5 migration; CI validates all notebooks pas
 
 Pressure norm increases ≈2%: Nitsche C=20 has more boundary-flux coupling than penalty C=1000.
 
-#### Effectivity study (verification/stokes-amr-effectivity.ipynb, 2026-10-05)
+#### Effectivity study — corrected adjoint (verification/stokes-amr-effectivity.ipynb, 2026-10-06)
 
-**J\_ref** (Richardson extrapolation from res=64,128; p=1.84): **19.457813**
+**Root cause of prior UNEXPLAINED results:** adjoint Nitsche used wrong pressure signs (−θn and +q\_an instead of +θn and −q\_an). Fixed in commit on stokes-amr-nitsche: added `_N_adj` helper with correct transposed tractions.
 
-**Uniform sequence:**
+**Fixed geometry:** 128-segment polygon, SizeMin=SizeMax=ℓ\_c (uniform mesh size, no hole grading) — committed setup of the effectivity notebook.
+
+**J\_ref** (Richardson extrapolation from res=32,64,128; p=2.62): **19.538416**
+
+**Uniform sequence (fixed geometry, corrected adjoint):**
 
 | res | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
 |---|---|---|---|---|---|---|
-| 16 | 842 | 19.487845 | −3.00e-02 | −6.84e-02 | 2.28 | UNEXPLAINED |
-| 32 | 3098 | 19.465002 | −7.19e-03 | −3.52e-02 | 4.90 | UNEXPLAINED |
-| 64 | 12384 | 19.459817 | −2.00e-03 | −8.22e-03 | 4.10 | UNEXPLAINED |
-| 128 | 49260 | 19.458371 | −5.59e-04 | −4.76e-03 | 8.52 | UNEXPLAINED |
+| 16 | 992 | 19.558274 | −1.986e-02 | −1.920e-02 | 0.967 | consistent with DWR theory |
+| 32 | 3304 | 19.543168 | −4.752e-03 | −4.720e-03 | 0.993 | consistent with DWR theory |
+| 64 | 12494 | 19.539191 | −7.745e-04 | −8.153e-04 | 1.053 | consistent with DWR theory |
+| 128 | 49508 | 19.538542 | −1.262e-04 | −1.732e-04 | 1.372 | UNEXPLAINED |
 
-**Adaptive sequence** (start res=16, 4 cycles):
+Note: res=128 I\_eff=1.372 — at the finest level J\_h is very close to J\_ref, so small inaccuracy in Richardson extrapolation (which uses J\_128 itself) inflates I\_eff. Uniform res=16–64 are consistent.
+
+**Adaptive sequence** (start res=16, 4 AMR cycles, fixed geometry, corrected adjoint):
 
 | cycle | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
 |---|---|---|---|---|---|---|
-| 0 | 842 | 19.487845 | −3.00e-02 | −6.84e-02 | 2.28 | UNEXPLAINED |
-| 1 | 1253 | 19.489939 | −3.21e-02 | −6.90e-02 | 2.15 | UNEXPLAINED |
-| 2 | 1707 | 19.466998 | −9.19e-03 | −1.25e-02 | 1.37 | UNEXPLAINED |
-| 3 | 2535 | 19.461402 | −3.59e-03 | −6.04e-03 | 1.68 | UNEXPLAINED |
-| 4 | 4117 | 19.460731 | −2.92e-03 | −5.86e-03 | 2.01 | UNEXPLAINED |
+| 0 | 992 | 19.558274 | −1.986e-02 | −1.920e-02 | 0.967 | consistent with DWR theory |
+| 1 | 1716 | 19.552215 | −1.380e-02 | −1.327e-02 | 0.961 | consistent with DWR theory |
+| 2 | 2722 | 19.543194 | −4.778e-03 | −4.741e-03 | 0.992 | consistent with DWR theory |
+| 3 | 4480 | 19.542547 | −4.131e-03 | −4.102e-03 | 0.993 | consistent with DWR theory |
+| 4 | 7134 | 19.540511 | −2.095e-03 | −2.089e-03 | 0.997 | consistent with DWR theory |
 
-**UNEXPLAINED — I\_eff ≠ 1.** Root cause not yet identified. Three hypotheses tested and ruled out (scratch 2026-10-06):
+I\_eff → 1 in the adaptive sequence (0.961–0.997); DWR estimator confirmed consistent.
 
-- *Functional mismatch:* J\_Nitsche = B((v,q),(φ,θ)) is the adjoint-consistent functional (derivation); ruled out.
-- *Adjoint pressure sign:* flipping θ\_h→−θ\_h in tot\_err gives wrong-sign I\_eff at res≥32; ruled out.
-- *Non-uniform mesh geometry:* fixed 128-segment polygon, SizeMin=SizeMax=ℓ\_c (uniform lc, no hole grading); I\_eff≈1.06 at res=16 but diverges 3.73/4.13/4.26 at res=32/64/128; ruled out.
+**Prior run (wrong adjoint, 2026-10-05, graded geometry, 32 segs):** I\_eff 2.28–8.52 (uniform), 1.37–2.28 (adaptive) — all UNEXPLAINED. Retained below for reference.
 
-**Candidate A scratch** (2026-10-06, graded geometry, 32 segs, J\_ref=19.457807, p=1.83):
+**Candidate B scratch** (2026-10-06, 128 segs, uniform lc, wrong adjoint, J\_ref=19.538414, p=2.61):
 
-| res | cells | J\_h | I\_orig | I\_{neg θ} |
+| res | cells | J\_h | J\_ref−J\_h | I\_eff |
 |---|---|---|---|---|
-| 16 | 842 | 19.487845 | 2.28 | 1.52 |
-| 32 | 3098 | 19.464968 | 4.91 | −2.68 |
-| 64 | 12386 | 19.459818 | 4.09 | −2.83 |
-| 128 | 49260 | 19.458371 | 8.43 | −7.67 |
+| 16 | 992 | 19.558274 | −1.99e-02 | 1.06 |
+| 32 | 3304 | 19.543168 | −4.75e-03 | 3.73 |
+| 64 | 12474 | 19.539194 | −7.79e-04 | 4.13 |
+| 128 | 49392 | 19.538542 | −1.28e-04 | 4.26 |
 
-**Candidate B scratch** (2026-10-06, 128 segs, uniform lc, J\_ref=19.538414, p=2.61):
-
-| res | cells | h\_cyl | J\_h | J\_ref−J\_h | I\_eff |
-|---|---|---|---|---|---|
-| 16 | 992 | 0.0450 | 19.558274 | −1.99e-02 | 1.06 |
-| 32 | 3304 | 0.0311 | 19.543168 | −4.75e-03 | 3.73 |
-| 64 | 12474 | 0.0213 | 19.539194 | −7.79e-04 | 4.13 |
-| 128 | 49392 | 0.0162 | 19.538542 | −1.28e-04 | 4.26 |
-
-Note: J\_ref\_B ≠ J\_ref\_A because 128-segment polygon ≠ 32-segment polygon (different circle approximations).
+This was the wrong-adjoint run confirming the geometry was not the issue.
 
 ---
 

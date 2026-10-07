@@ -246,13 +246,28 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 
 ### Results
 
-| lvl | res | segs | cells | dt | steps | C_D_max | ✓ | C_L_max | ✓ | St | ✓ | Δp | ✓ | wall |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 32 | 32 | — | — | — | — | — | — | — | — | — | — | — | running |
-| 2 | 64 | 64 | — | — | — | — | — | — | — | — | — | — | — | running |
-| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | skipped (~18 h) |
+| lvl | res | segs | cells | dt | steps | T_lift | C_D_max | ✓ | C_L_max | ✓ | St | ✓ | Δp | ✓ | wall |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 32 | 32 | 2751 | 0.00238 | 6301 | 0.34273 | 3.2904 | ✗ | 0.7777 | ✗ | 0.2918 | ✗ | 2.5224 | ✗ | 253 s |
+| 2 | 64 | 64 | 10716 | 0.00117 | 12850 | 0.33491 | 3.2685 | ✗ | 1.0350 | ✗ | 0.2986 | ✓ | 2.5046 | ✗ | 7688 s |
+| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | skipped‡ |
 
-*Table will be updated when the 2D-2 run completes (~12:34 on 2026-10-07).*
+‡ L3 run separately (~18 h projected)
+
+**Convergence L1→L2:**
+
+| QoI | L1 | L2 | ST96 interval | direction | note |
+|---|---|---|---|---|---|
+| C_D,max | 3.2904 | 3.2685 | [3.22, 3.24] | ↓ toward | L2 above upper bound by 0.028 |
+| C_L,max | 0.7777 | 1.0350 | [0.99, 1.01] | ↑ toward | L1 severely under; L2 above upper bound by 0.025 |
+| St | 0.2918 | 0.2986 | [0.295, 0.305] | ↑ into ✓ | enters interval at L2 |
+| Δp | 2.5224 | 2.5046 | [2.46, 2.50] | ↓ toward | L2 above upper bound by 0.005 |
+
+### Notes
+
+- **C_L,max at L1** = 0.778 — severely below reference (~1.0). Coarse mesh (h_cyl≈0.0098) underresolves the periodic wake at Re=100; full oscillation amplitude is not captured until L2.
+- **Overshoots at L2:** C_D,max, C_L,max, and Δp all overshoot their ST96 upper bounds at L2. Only St enters the interval. This is consistent with GLS P1/P1 over-dissipation being reduced at finer mesh but not yet achieving the reference values.
+- **No predictions made** about L3 interval membership.
 
 ---
 

@@ -194,7 +194,7 @@ No numeric QoI comparison records.
 
 f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)  
 † dt = 0.5·h_min/0.3: L1 h_min≈0.00714 (dt≈0.01190), L2 h_min≈0.00350 (dt≈0.00584); ≈2.4× larger than prior dt = 0.5·h_cyl  
-‡ L3 skipped in this execution; projected ~2.5 h with new dt (≈3.3× faster than prior ~8 h estimate)
+‡ L3 skipped here; run separately (~2.5 h projected)
 
 **Convergence rates L1→L2 (log₂ |e_coarse/e_fine|):**
 
@@ -202,7 +202,7 @@ f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)
 |---|---|---|
 | C_D | +0.97 | first-order ✓ |
 | C_L (f-sc) | +3.88 | sign change L1→L2; not a convergence rate |
-| Δp | −0.03 | monotone undershoot at both levels; no convergence |
+| Δp | −0.03 | Δp = 0.1153 at both levels — UNEXPLAINED |
 
 ### Surface stress results (secondary)
 
@@ -213,20 +213,21 @@ f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)
 
 ### Notes
 
-- **dt change:** The new dt = time_step(msh, U_m=0.3, C_CFL=0.5) = 0.5·h_min/0.3 is ≈2.4× larger than the prior dt = 0.5·h_cyl because h_min < h_cyl but U_m=0.3 in the denominator dominates. Step counts drop from 3876→1600 (L1) and 7910→3328 (L2); wall times from 142 s→62 s and 7168 s→516 s.
-- **C_D** converges at rate ≈1.0, consistent with first-order P1 elements. L2 value (5.6094) is above the ST96 upper bound; L3 expected to enter the interval.
-- **C_L** at L1 is negative (wake under-resolved). At L2 C_L = 0.009361 (correct sign, not yet in [0.0104, 0.0110]); the larger dt reduces temporal accuracy. Prior run (smaller dt) had L2 C_L = 0.01077 ✓.
-- **Δp** shows monotone undershoot at both levels: L1 = 0.11533, L2 = 0.11528 (reference 0.11752). The non-monotone overshoot/undershoot of the prior run is absent.
+- **C_D** converges at rate ≈1.0. L2 error |ΔC_D| = 0.030 (vs 0.011 with dt = 0.5·h_cyl on the same mesh). Both dt rules yield monotone C_D convergence; the larger CFL-based dt gives ~3× worse L2 accuracy.
+- **C_L** at L1 is negative (wake under-resolved). At L2 C_L = 0.009361 (correct sign); prior run (dt = 0.5·h_cyl) gave L2 C_L = 0.01077 ✓.
+- **Δp — UNEXPLAINED:** Δp = 0.11533 (L1) and 0.11528 (L2) — effectively flat between levels, both well below reference 0.11752 and outside ST96 interval [0.1172, 0.1176]. No prediction made.
 - **Surface stress** is less accurate than the volume form at both levels, as expected for P1 elements.
 
-### Prior run (dt = 0.5·h_cyl, 2026-10-01)
+### dt comparison — same meshes, two dt rules (2026-10-01 vs 2026-10-07)
 
-| lvl | dt | steps | C_D | C_L | Δp | wall |
-|---|---|---|---|---|---|---|
-| 1 | 0.00490 | 3876 | 5.60199 | −0.00743 | 0.11811 | 142 s |
-| 2 | 0.00245 | 7910 | 5.59079 | 0.01077 ✓ | 0.11653 | 7168 s |
+| lvl | dt rule | dt | steps | C_D | \|ΔC_D\| | C_L | Δp | wall |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 0.5·h_cyl | 0.00490 | 3876 | 5.60199 | 0.02245 | −0.00743 | 0.11811 | 142 s |
+| 1 | time_step(U=0.3) | 0.01190 | 1600 | 5.63822 | 0.05868 | −0.00792 | 0.11533 | 62 s |
+| 2 | 0.5·h_cyl | 0.00245 | 7910 | 5.59079 | 0.01125 | 0.01077 ✓ | 0.11653 | 7168 s |
+| 2 | time_step(U=0.3) | 0.00584 | 3328 | 5.60940 | 0.02987 | 0.00936 | 0.11528 | 516 s |
 
-C_L at L2 entered ST96 interval [0.0104, 0.0110] with the smaller dt; Δp non-monotone (L1 overshoot, L2 undershoot).
+C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outside the ST96 interval. Δp behavior switches from non-monotone (overshoot/undershoot) to flat undershoot — unexplained in both cases.
 
 ---
 

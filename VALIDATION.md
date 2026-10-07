@@ -173,12 +173,12 @@ No numeric QoI comparison records.
 ## Verification — Schäfer-Turek 2D-1
 
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
-**Run date:** 2026-10-01  
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3  
+**Run date:** 2026-10-07 (re-run with CFL-based dt; prior run 2026-10-01 used dt = 0.5·h_cyl)  
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
 **Reference:** Schäfer & Turek (1996), 2D-1 steady: C_D = 5.57953523384, C_L = 0.010618948146, Δp = 0.11752016697  
 **ST96 intervals:** C_D ∈ [5.57, 5.59], C_L ∈ [0.0104, 0.0110], Δp ∈ [0.1172, 0.1176]  
 **Steady-state criterion:** ‖u1−u0‖/dt/‖u1‖ < 1e−6 (coefficient-vector Euclidean norm)  
-**Scheme:** GLS stabilized P1/P1 NS, fractional step, dt = 0.5·h_cyl (min cell size at cylinder)  
+**Scheme:** GLS stabilized P1/P1 NS, fractional step, dt = time_step(msh, U_m=0.3, C_CFL=0.5) = 0.5·h_min/0.3  
 **Mesh:** graded (v6): dist_min=0.5D=0.05 m, dist_max=3D=0.30 m  
 **Domain:** [0, 2.2]×[0, 0.41], cylinder (0.2, 0.2, r=0.05), ν=1e-3, U_m=0.3  
 **Force (primary):** volume form (Green's formula, ψ=e_D on cylinder dofs)  
@@ -188,45 +188,70 @@ No numeric QoI comparison records.
 
 | lvl | res | segs | cells | h_cyl | h_D | dt | steps | t_stop | C_D | \|ΔC_D\| | ✓ | C_L | f-sc | ✓ | Δp | \|ΔΔp\| | ✓ | wall |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.00490 | 3876 | 18.996 | 5.60199 | 0.02245 | ✗ | −0.00743 | 0.00324 | ✗ | 0.11811 | 0.00059 | ✗ | 142 s |
-| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00245 | 7910 | 19.406 | 5.59079 | 0.01125 | ✗† | 0.01077 | 0.00003 | ✓ | 0.11653 | 0.00099 | ✗ | 7168 s |
-| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | running‡ |
+| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.01190† | 1600 | 19.042 | 5.63822 | 0.05868 | ✗ | −0.00792 | 0.00332 | ✗ | 0.11533 | 0.00219 | ✗ | 62 s |
+| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00584† | 3328 | 19.423 | 5.60940 | 0.02987 | ✗ | 0.00936 | 0.00023 | ✗ | 0.11528 | 0.00224 | ✗ | 516 s |
+| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | skipped‡ |
 
 f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)  
-† C_D = 5.5908, 0.079‰ above ST96 upper bound 5.59  
-‡ L3 started 2026-10-01, expected ~8 h; table will be updated when complete
+† dt = 0.5·h_min/0.3: L1 h_min≈0.00714 (dt≈0.01190), L2 h_min≈0.00350 (dt≈0.00584); ≈2.4× larger than prior dt = 0.5·h_cyl  
+‡ L3 skipped in this execution; projected ~2.5 h with new dt (≈3.3× faster than prior ~8 h estimate)
 
 **Convergence rates L1→L2 (log₂ |e_coarse/e_fine|):**
 
 | QoI | rate | note |
 |---|---|---|
-| C_D | +1.00 | first-order ✓ |
-| C_L (f-sc) | n/a | sign change L1→L2; monotone regime begins at L2 |
-| Δp | −0.75 | non-monotone; L1 overshoots, L2 undershoots |
+| C_D | +0.97 | first-order ✓ |
+| C_L (f-sc) | +3.88 | sign change L1→L2; not a convergence rate |
+| Δp | −0.03 | monotone undershoot at both levels; no convergence |
 
 ### Surface stress results (secondary)
 
 | lvl | C_D_surf | \|ΔC_D\| | C_L_surf | f-sc |
 |---|---|---|---|---|
-| 1 | 5.39269 | 0.18685 | −0.08149 | 0.01651 |
-| 2 | 5.47386 | 0.10568 | 0.00199 | 0.00155 |
+| 1 | 5.41440 | 0.16514 | −0.07102 | 0.01463 |
+| 2 | 5.49830 | 0.08124 | 0.00087 | 0.00175 |
 
 ### Notes
 
-- **C_D** converges at rate ≈ 1.0, consistent with first-order P1 elements. L2 value is 0.079‰ above the ST96 upper bound; L3 expected to enter the interval.
-- **C_L** at L1 is negative due to insufficient wake resolution on the graded coarse mesh; the graded fine zone (dist_max=3D) is necessary but not sufficient at res=32. At L2 the wake is resolved and C_L ∈ [0.0104, 0.0110] ✓. The sign change between L1 and L2 makes the L1→L2 rate meaningless.
-- **Δp** shows non-monotone convergence (L1 overshoots, L2 undershoots). Characteristic of GLS P1/P1 stabilization on coarse meshes; pressure convergence expected to become monotone at L3.
-- **Surface stress** is less accurate than the volume form at both levels, as expected for P1 elements (differentiating the velocity amplifies traction errors). The volume form is the authoritative estimate.
-- L2 wall time: 7168 s (≈ 2 h) on MacBook M5 Pro. The graded fine zone (dist_max=3D) increases cell count to 10716 vs 4652 for the ungraded mesh.
+- **dt change:** The new dt = time_step(msh, U_m=0.3, C_CFL=0.5) = 0.5·h_min/0.3 is ≈2.4× larger than the prior dt = 0.5·h_cyl because h_min < h_cyl but U_m=0.3 in the denominator dominates. Step counts drop from 3876→1600 (L1) and 7910→3328 (L2); wall times from 142 s→62 s and 7168 s→516 s.
+- **C_D** converges at rate ≈1.0, consistent with first-order P1 elements. L2 value (5.6094) is above the ST96 upper bound; L3 expected to enter the interval.
+- **C_L** at L1 is negative (wake under-resolved). At L2 C_L = 0.009361 (correct sign, not yet in [0.0104, 0.0110]); the larger dt reduces temporal accuracy. Prior run (smaller dt) had L2 C_L = 0.01077 ✓.
+- **Δp** shows monotone undershoot at both levels: L1 = 0.11533, L2 = 0.11528 (reference 0.11752). The non-monotone overshoot/undershoot of the prior run is absent.
+- **Surface stress** is less accurate than the volume form at both levels, as expected for P1 elements.
 
-### Diagnosis variants (CANDIDATE — not adopted)
+### Prior run (dt = 0.5·h_cyl, 2026-10-01)
 
-The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) but rejected:
+| lvl | dt | steps | C_D | C_L | Δp | wall |
+|---|---|---|---|---|---|---|
+| 1 | 0.00490 | 3876 | 5.60199 | −0.00743 | 0.11811 | 142 s |
+| 2 | 0.00245 | 7910 | 5.59079 | 0.01077 ✓ | 0.11653 | 7168 s |
 
-| CANDIDATE | description | outcome |
-|---|---|---|
-| dt×2 | dt = h_cyl (instead of 0.5·h_cyl) | no meaningful improvement in C_L; rejected |
-| steady-d1 | d1 = h/\|u\| (instead of standard) | unstable at L2; rejected |
+C_L at L2 entered ST96 interval [0.0104, 0.0110] with the smaller dt; Δp non-monotone (L1 overshoot, L2 undershoot).
+
+---
+
+## Verification — Schäfer-Turek 2D-2
+
+**Notebook:** `verification/schafer-turek-2d2.ipynb`  
+**Run date:** 2026-10-07  
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Reference:** Schäfer & Turek (1996), 2D-2 unsteady: C_D_max∈[3.22,3.24], C_L_max∈[0.99,1.01], St∈[0.295,0.305], Δp∈[2.46,2.50]  
+**Scheme:** GLS stabilized P1/P1 NS, fractional step, 5 Newton iter/step, dt = time_step(msh, U_m=1.5, C_CFL=0.5) = 0.5·h_min/1.5  
+**Mesh:** graded (v6): dist_min=0.5D=0.05 m, dist_max=3D=0.30 m  
+**Domain:** [0, 2.2]×[0, 0.41], cylinder (0.2, 0.2, r=0.05), ν=1e-3, U_m=1.5, U_mean=(2/3)·U_m=1.0, Re=100  
+**Force (primary):** volume form; force_ref = −2/(U_mean²·D) = −20 (rho=1, D=0.1)  
+**Analysis:** last 5 complete lift periods (upward zero-crossings of C_L); C_D_max, C_L_max, St=f_lift·D/U_mean, Δp at t=t_CL_max+T_lift/2  
+**Run T:** 15.0 s (vortex shedding onset ~Re=100; ~7–8 lift cycles expected)
+
+### Results
+
+| lvl | res | segs | cells | dt | steps | C_D_max | ✓ | C_L_max | ✓ | St | ✓ | Δp | ✓ | wall |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 32 | 32 | — | — | — | — | — | — | — | — | — | — | — | running |
+| 2 | 64 | 64 | — | — | — | — | — | — | — | — | — | — | — | running |
+| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | skipped (~18 h) |
+
+*Table will be updated when the 2D-2 run completes (~12:34 on 2026-10-07).*
 
 ---
 

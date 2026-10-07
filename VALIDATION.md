@@ -188,21 +188,20 @@ No numeric QoI comparison records.
 
 | lvl | res | segs | cells | h_cyl | h_D | dt | steps | t_stop | C_D | \|ΔC_D\| | ✓ | C_L | f-sc | ✓ | Δp | \|ΔΔp\| | ✓ | wall |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.01190† | 1600 | 19.042 | 5.63822 | 0.05868 | ✗ | −0.00792 | 0.00332 | ✗ | 0.11533 | 0.00219 | ✗ | 62 s |
-| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00584† | 3328 | 19.423 | 5.60940 | 0.02987 | ✗ | 0.00936 | 0.00023 | ✗ | 0.11528 | 0.00224 | ✗ | 516 s |
-| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | skipped‡ |
+| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.01190† | 1600 | 19.042 | 5.63822 | 0.05868 | ✗ | −0.00792 | 0.00332 | ✗ | 0.11533 | 0.00219 | ✗ | 58 s |
+| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00584† | 3328 | 19.423 | 5.60940 | 0.02987 | ✗ | 0.00936 | 0.00023 | ✗ | 0.11528 | 0.00224 | ✗ | 465 s |
+| 3 | 128 | 128 | 42601 | 0.00245 | 0.00279 | 0.00292† | 7490 | 19.473 | 5.59284 | 0.01331 | ✗ | 0.01016 | 0.00008 | ✗ | 0.11579 | 0.00173 | ✗ | 7962 s |
 
 f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)  
-† dt = 0.5·h_min/0.3: L1 h_min≈0.00714 (dt≈0.01190), L2 h_min≈0.00350 (dt≈0.00584); ≈2.4× larger than prior dt = 0.5·h_cyl  
-‡ L3 skipped here; run separately (~2.5 h projected)
+† dt = 0.5·h_min/0.3: L1 h_min≈0.00714 (dt≈0.01190), L2 h_min≈0.00350 (dt≈0.00584), L3 h_min≈0.00175 (dt≈0.00292); ≈2.4× larger than prior dt = 0.5·h_cyl at each level
 
-**Convergence rates L1→L2 (log₂ |e_coarse/e_fine|):**
+**Convergence rates (log₂ |e_coarse/e_fine|):**
 
-| QoI | rate | note |
-|---|---|---|
-| C_D | +0.97 | first-order ✓ |
-| C_L (f-sc) | +3.88 | sign change L1→L2; not a convergence rate |
-| Δp | −0.03 | Δp = 0.1153 at both levels — UNEXPLAINED |
+| QoI | L1→L2 | L2→L3 | note |
+|---|---|---|---|
+| C_D | +0.97 | +1.17 | first-order ✓ |
+| C_L (f-sc) | +3.88 | +1.46 | sign change L1→L2; monotone from L2 |
+| Δp | −0.03 | +0.37 | UNEXPLAINED flat at L1/L2; positive convergence at L3 |
 
 ### Surface stress results (secondary)
 
@@ -210,13 +209,14 @@ f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)
 |---|---|---|---|---|
 | 1 | 5.41440 | 0.16514 | −0.07102 | 0.01463 |
 | 2 | 5.49830 | 0.08124 | 0.00087 | 0.00175 |
+| 3 | 5.54814 | 0.03139 | 0.01163 | 0.00018 |
 
 ### Notes
 
-- **C_D** converges at rate ≈1.0. L2 error |ΔC_D| = 0.030 (vs 0.011 with dt = 0.5·h_cyl on the same mesh). Both dt rules yield monotone C_D convergence; the larger CFL-based dt gives ~3× worse L2 accuracy.
-- **C_L** at L1 is negative (wake under-resolved). At L2 C_L = 0.009361 (correct sign); prior run (dt = 0.5·h_cyl) gave L2 C_L = 0.01077 ✓.
-- **Δp — UNEXPLAINED:** Δp = 0.11533 (L1) and 0.11528 (L2) — effectively flat between levels, both well below reference 0.11752 and outside ST96 interval [0.1172, 0.1176]. No prediction made.
-- **Surface stress** is less accurate than the volume form at both levels, as expected for P1 elements.
+- **C_D** converges at rate ≈1.0–1.2. L3 |ΔC_D|=0.013; L3 value 5.5928 is 0.003 above ST96 upper bound 5.59. Larger dt gives ~2.7× worse L2 accuracy vs prior 0.5·h_cyl run (see comparison table).
+- **C_L** sign change L1→L2 (wake under-resolved at L1). L3=0.01016, 0.0002 below ST96 lower bound 0.0104. Rate L2→L3 ≈1.5 (monotone regime confirmed).
+- **Δp — UNEXPLAINED:** flat at L1 (0.11533) and L2 (0.11528), then converging positively at L3 (0.11579, rate +0.37). The flat non-convergent behavior at L1/L2 is unexplained. L3 still outside [0.1172, 0.1176].
+- **Surface stress** is less accurate than the volume form at all levels. C_L_surf at L3 (0.01163) overshoots ST96 upper bound 0.0110.
 
 ### dt comparison — same meshes, two dt rules (2026-10-01 vs 2026-10-07)
 

@@ -1,9 +1,12 @@
+import os as _os
+_os.environ.setdefault("OMP_NUM_THREADS", "1")
+_os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+_os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+_os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 import sys, os, subprocess
 
 _on_colab = "google.colab" in sys.modules
-
-if not _on_colab:
-    os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 if _on_colab:
     try:

@@ -1,7 +1,21 @@
 # VALIDATION — DD2365_FEniCSx
 
 Records of legacy smoke tests (FEniCSx port vs legacy FEniCS/mshr) and numerical verification.
-All runs: fenicsx-0.11 conda env (python=3.12, dolfinx=0.11.0), serial, Apple Silicon M5.
+All runs: fenicsx-0.11 conda env (python=3.12, dolfinx=0.11.0), Apple Silicon M5.
+
+## Thread environment note (diagnosed 2026-10-07)
+
+Notebooks run via `conda run -n fenicsx-0.11 jupyter nbconvert --execute` without explicit thread controls.
+`OMP_NUM_THREADS` and `OPENBLAS_NUM_THREADS` are **unset**; both default to 18 (all logical CPUs on M5 Pro).
+MUMPS (`libdmumps.dylib`) links `libomp.dylib` and `libblas.3 → libopenblas.0.dylib` — both threading libraries are active.
+Observed CPU utilization during solves: ~300% (≈3 cores effective), despite 18-thread defaults.
+MUMPS and OpenBLAS both scale back to ~3 threads for the mesh sizes used here (L1: 2751 cells, L2: 10716, L3: 42601 for 2D-1).
+
+**All wall times in this file reflect this multi-threaded environment (OMP/BLAS ≤18, effective ~3).**
+
+**Proposed fix (not yet applied):** prepend `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1` to the `conda run` invocation to force single-threaded BLAS/OMP, giving reproducible serial wall times. Bootstrap block v1 is unchanged until this is approved.
+
+---
 
 ---
 
@@ -175,6 +189,7 @@ No numeric QoI comparison records.
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
 **Run date:** 2026-10-07 (re-run with CFL-based dt; prior run 2026-10-01 used dt = 0.5·h_cyl)  
 **Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Thread environment (2026-10-07 runs):** OMP_NUM_THREADS and OPENBLAS_NUM_THREADS unset; MUMPS links libomp+libopenblas, both default to 18 threads (all logical CPUs, Apple M5 Pro). Effective thread utilization ~3 on average for these problem sizes. Wall times below reflect this multi-threaded environment.  
 **Reference:** Schäfer & Turek (1996), 2D-1 steady: C_D = 5.57953523384, C_L = 0.010618948146, Δp = 0.11752016697  
 **ST96 intervals:** C_D ∈ [5.57, 5.59], C_L ∈ [0.0104, 0.0110], Δp ∈ [0.1172, 0.1176]  
 **Steady-state criterion:** ‖u1−u0‖/dt/‖u1‖ < 1e−6 (coefficient-vector Euclidean norm)  
@@ -234,8 +249,9 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 ## Verification — Schäfer-Turek 2D-2
 
 **Notebook:** `verification/schafer-turek-2d2.ipynb`  
-**Run date:** 2026-10-07  
+**Run date:** 2026-10-07 (L1+L2); L3 started 2026-10-07 ~14:55  
 **Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Thread environment:** same as ST 2D-1 (OMP_NUM_THREADS and OPENBLAS_NUM_THREADS unset; MUMPS defaults to 18 threads; effective ~3 on average). Wall times reflect multi-threaded environment.  
 **Reference:** Schäfer & Turek (1996), 2D-2 unsteady: C_D_max∈[3.22,3.24], C_L_max∈[0.99,1.01], St∈[0.295,0.305], Δp∈[2.46,2.50]  
 **Scheme:** GLS stabilized P1/P1 NS, fractional step, 5 Newton iter/step, dt = time_step(msh, U_m=1.5, C_CFL=0.5) = 0.5·h_min/1.5  
 **Mesh:** graded (v6): dist_min=0.5D=0.05 m, dist_max=3D=0.30 m  
@@ -265,8 +281,8 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 
 ### Notes
 
-- **C_L,max at L1** = 0.778 — severely below reference (~1.0). Coarse mesh (h_cyl≈0.0098) underresolves the periodic wake at Re=100; full oscillation amplitude is not captured until L2.
-- **Overshoots at L2:** C_D,max, C_L,max, and Δp all overshoot their ST96 upper bounds at L2. Only St enters the interval. This is consistent with GLS P1/P1 over-dissipation being reduced at finer mesh but not yet achieving the reference values.
+- **C_L,max at L1** = 0.778 — UNEXPLAINED: severely below reference (~1.0) and all other ST96 QoIs. Δ = 0.778 − 1.0 = −0.222. CANDIDATE: coarse mesh (h_cyl≈0.0098) insufficient to sustain full-amplitude periodic wake at Re=100; but this is not verified.
+- **Overshoots at L2:** C_D,max=3.268 (+0.028 above 3.24), C_L,max=1.035 (+0.025 above 1.01), Δp=2.505 (+0.005 above 2.50) — all above ST96 upper bounds. UNEXPLAINED: C_L,max overshoot is inconsistent with a dissipation argument (over-dissipation would damp amplitude below reference, not above it); no adequate explanation in hand.
 - **No predictions made** about L3 interval membership.
 
 ---

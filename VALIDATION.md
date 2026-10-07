@@ -61,6 +61,71 @@ Velocity norms change by ≤1.6% on v5 migration; CI validates all notebooks pas
 
 ---
 
+#### Nitsche BC migration (stokes-amr-nitsche, 2026-10-05)
+
+**Scheme:** symmetric Nitsche C=20 (authorized deviation 2026-10-03); `tot_err` and `E_K` include Nitsche boundary facet residual terms; `J_h = ∫_Γ5 (−σ(u,p)·n + γu)·e_x ds`.
+
+**Smoke test vs penalty baseline (res=32):**
+
+| Quantity | Penalty C=1000 (prior) | Nitsche C=20 (new) | Δ |
+|---|---|---|---|
+| ‖u‖\_L2 | 2.950 | 2.958 | +0.27% |
+| ‖p‖\_L2 | 12.567 | 12.861 | +2.3% |
+| J\_h | — | 19.465 | — |
+| Cells marked | 309 | 275 | −11% |
+| Cells refined | 3945 | 4051 | +2.7% |
+
+Pressure norm increases ≈2%: Nitsche C=20 has more boundary-flux coupling than penalty C=1000.
+
+#### Effectivity study — corrected adjoint (verification/stokes-amr-effectivity.ipynb, 2026-10-06)
+
+**Root cause of prior UNEXPLAINED results:** adjoint Nitsche used wrong pressure signs (−θn and +q\_an instead of +θn and −q\_an). Fixed in commit on stokes-amr-nitsche: added `_N_adj` helper with correct transposed tractions.
+
+**Fixed geometry:** 128-segment polygon, SizeMin=SizeMax=ℓ\_c (uniform mesh size, no hole grading) — committed setup of the effectivity notebook.
+
+**Independent reference (stokes-amr-indep-ref.py, 2026-10-06):** two primal-only Nitsche solves on the same fixed geometry (128-seg polygon, uniform lc, C=20):
+- (a) P2/P1 res=256: J\_h = 19.5383952559, cells = 197 872
+- (b) P3/P2 res=128: J\_h = 19.5383691175, cells = 49 508
+- rel\_diff = 1.34 × 10⁻⁶ < 10⁻⁵ → AGREE → **J\_ref := 19.5383952559**
+
+**Richardson extrapolation (res=32,64,128; p=2.62): J\_ref(RI) = 19.538416.** The RI value is consistent with the independent reference (7 × 10⁻⁶ relative); the independent reference is adopted as J\_ref because it does not depend on the sequence being studied.
+
+**Uniform sequence (fixed geometry, corrected adjoint; J\_ref = 19.5383952559):**
+
+| res | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
+|---|---|---|---|---|---|---|
+| 16 | 992 | 19.558274 | −1.988e-02 | −1.920e-02 | 0.966 | consistent with DWR theory |
+| 32 | 3304 | 19.543168 | −4.773e-03 | −4.720e-03 | 0.989 | consistent with DWR theory |
+| 64 | 12494 | 19.539191 | −7.957e-04 | −8.153e-04 | 1.025 | consistent with DWR theory |
+| 128 | 49508 | 19.538542 | −1.467e-04 | −1.732e-04 | 1.181 | UNEXPLAINED |
+
+**Adaptive sequence** (start res=16, 4 AMR cycles, fixed geometry, corrected adjoint; J\_ref = 19.5383952559):
+
+| cycle | cells | J\_h | J\_ref−J\_h | tot\_err | I\_eff | label |
+|---|---|---|---|---|---|---|
+| 0 | 992 | 19.558274 | −1.988e-02 | −1.920e-02 | 0.966 | consistent with DWR theory |
+| 1 | 1716 | 19.552215 | −1.382e-02 | −1.327e-02 | 0.960 | consistent with DWR theory |
+| 2 | 2722 | 19.543194 | −4.799e-03 | −4.741e-03 | 0.988 | consistent with DWR theory |
+| 3 | 4480 | 19.542547 | −4.152e-03 | −4.102e-03 | 0.988 | consistent with DWR theory |
+| 4 | 7134 | 19.540511 | −2.116e-03 | −2.089e-03 | 0.987 | consistent with DWR theory |
+
+I\_eff → 1 in the adaptive sequence (0.960–0.988); DWR estimator confirmed consistent. The uniform res=128 entry (I\_eff=1.181) is UNEXPLAINED.
+
+**Prior run (wrong adjoint, 2026-10-05, graded geometry, 32 segs):** I\_eff 2.28–8.52 (uniform), 1.37–2.28 (adaptive) — all UNEXPLAINED. Retained below for reference.
+
+**Candidate B scratch** (2026-10-06, 128 segs, uniform lc, wrong adjoint, J\_ref=19.538414, p=2.61):
+
+| res | cells | J\_h | J\_ref−J\_h | I\_eff |
+|---|---|---|---|---|
+| 16 | 992 | 19.558274 | −1.99e-02 | 1.06 |
+| 32 | 3304 | 19.543168 | −4.75e-03 | 3.73 |
+| 64 | 12474 | 19.539194 | −7.79e-04 | 4.13 |
+| 128 | 49392 | 19.538542 | −1.28e-04 | 4.26 |
+
+This was the wrong-adjoint run confirming the geometry was not the issue.
+
+---
+
 ### Convection-Diffusion-NSE.ipynb
 
 **Canonical blocks at test time:** bootstrap v1, gmsh_rect_minus_circles v2,

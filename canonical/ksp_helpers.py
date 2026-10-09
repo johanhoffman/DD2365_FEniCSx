@@ -24,3 +24,12 @@ def solve_checked(ksp, b, x, name):
         raise RuntimeError(
             f"KSP '{name}' diverged: reason={reason}, iterations={iters}"
         )
+
+
+def solve_checked_snes(snes, name):
+    reason = snes.getConvergedReason()
+    if reason <= 0:
+        iters = snes.getIterationNumber()
+        raise RuntimeError(
+            f"SNES '{name}' did not converge: reason={reason}, iterations={iters}"
+        )

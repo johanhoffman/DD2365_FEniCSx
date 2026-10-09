@@ -1,7 +1,22 @@
 # VALIDATION — DD2365_FEniCSx
 
 Records of legacy smoke tests (FEniCSx port vs legacy FEniCS/mshr) and numerical verification.
-All runs: fenicsx-0.11 conda env (python=3.12, dolfinx=0.11.0), serial, Apple Silicon M5.
+All runs: fenicsx-0.11 conda env (python=3.14.6, dolfinx=0.11.0; environment.yml pins python=3.12 but env resolved to 3.14.6 on creation 2026-09-24), Apple Silicon M5.
+
+## Thread environment note (diagnosed and corrected 2026-10-07)
+
+Notebooks run via `conda run -n fenicsx-0.11 jupyter nbconvert --execute` with bootstrap v1 as first code cell:
+`os.environ.setdefault("OMP_NUM_THREADS", "1")` executes before `import dolfinx`.
+MUMPS (`libdmumps.dylib`) links `libomp.dylib` and `libblas.3 → libopenblas.0.dylib`.
+`libopenblas.0.dylib` uses `threading_layer='openmp'` — it reads `OMP_NUM_THREADS` and is also limited to 1 thread.
+threadpoolctl (after full dolfinx + petsc4py + mpi4py import) confirms: libopenblas=1 thread, libomp=1 thread.
+
+**All wall times in this file reflect single-threaded BLAS/OpenMP (bootstrap v1).**
+**Process CPU ~300% (observed during 2D-2 L3):** source is outside BLAS/OpenMP pools — UNEXPLAINED.
+CANDIDATES: ipykernel daemon threads (IOPub, Heartbeat, Control) competing for Python GIL; MPI progress threads.
+**Bootstrap v2** (PR #28, merged 2026-10-07) adds `OPENBLAS_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`, `MKL_NUM_THREADS=1` as defensive redundancy for non-OpenMP BLAS backends and Colab.
+
+---
 
 ---
 
@@ -173,12 +188,13 @@ No numeric QoI comparison records.
 ## Verification — Schäfer-Turek 2D-1
 
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
-**Run date:** 2026-10-01  
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3  
+**Run date:** 2026-10-07 (re-run with CFL-based dt; prior run 2026-10-01 used dt = 0.5·h_cyl)  
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Thread environment (2026-10-07 runs):** bootstrap v1 — single-threaded BLAS/OpenMP (OMP_NUM_THREADS=1 set before dolfinx import; threadpoolctl confirms libopenblas=1, libomp=1). Wall times below reflect single-threaded BLAS/OpenMP.  
 **Reference:** Schäfer & Turek (1996), 2D-1 steady: C_D = 5.57953523384, C_L = 0.010618948146, Δp = 0.11752016697  
 **ST96 intervals:** C_D ∈ [5.57, 5.59], C_L ∈ [0.0104, 0.0110], Δp ∈ [0.1172, 0.1176]  
 **Steady-state criterion:** ‖u1−u0‖/dt/‖u1‖ < 1e−6 (coefficient-vector Euclidean norm)  
-**Scheme:** GLS stabilized P1/P1 NS, fractional step, dt = 0.5·h_cyl (min cell size at cylinder)  
+**Scheme:** GLS stabilized P1/P1 NS, fractional step, dt = time_step(msh, U_m=0.3, C_CFL=0.5) = 0.5·h_min/0.3  
 **Mesh:** graded (v6): dist_min=0.5D=0.05 m, dist_max=3D=0.30 m  
 **Domain:** [0, 2.2]×[0, 0.41], cylinder (0.2, 0.2, r=0.05), ν=1e-3, U_m=0.3  
 **Force (primary):** volume form (Green's formula, ψ=e_D on cylinder dofs)  
@@ -188,45 +204,91 @@ No numeric QoI comparison records.
 
 | lvl | res | segs | cells | h_cyl | h_D | dt | steps | t_stop | C_D | \|ΔC_D\| | ✓ | C_L | f-sc | ✓ | Δp | \|ΔΔp\| | ✓ | wall |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.00490 | 3876 | 18.996 | 5.60199 | 0.02245 | ✗ | −0.00743 | 0.00324 | ✗ | 0.11811 | 0.00059 | ✗ | 142 s |
-| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00245 | 7910 | 19.406 | 5.59079 | 0.01125 | ✗† | 0.01077 | 0.00003 | ✓ | 0.11653 | 0.00099 | ✗ | 7168 s |
-| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | running‡ |
+| 1 | 32 | 32 | 2751 | 0.00980 | 0.01120 | 0.01190† | 1600 | 19.042 | 5.63822 | 0.05868 | ✗ | −0.00792 | 0.00332 | ✗ | 0.11533 | 0.00219 | ✗ | 58 s |
+| 2 | 64 | 64 | 10716 | 0.00491 | 0.00550 | 0.00584† | 3328 | 19.423 | 5.60940 | 0.02987 | ✗ | 0.00936 | 0.00023 | ✗ | 0.11528 | 0.00224 | ✗ | 465 s |
+| 3 | 128 | 128 | 42601 | 0.00245 | 0.00279 | 0.00292† | 7490 | 19.473 | 5.59284 | 0.01331 | ✗ | 0.01016 | 0.00008 | ✗ | 0.11579 | 0.00173 | ✗ | 7962 s |
 
 f-sc = \|ΔC_L\| / C_D_ref (force-vector scale)  
-† C_D = 5.5908, 0.079‰ above ST96 upper bound 5.59  
-‡ L3 started 2026-10-01, expected ~8 h; table will be updated when complete
+† dt = 0.5·h_min/0.3: L1 h_min≈0.00714 (dt≈0.01190), L2 h_min≈0.00350 (dt≈0.00584), L3 h_min≈0.00175 (dt≈0.00292); ≈2.4× larger than prior dt = 0.5·h_cyl at each level
 
-**Convergence rates L1→L2 (log₂ |e_coarse/e_fine|):**
+**Convergence rates (log₂ |e_coarse/e_fine|):**
 
-| QoI | rate | note |
-|---|---|---|
-| C_D | +1.00 | first-order ✓ |
-| C_L (f-sc) | n/a | sign change L1→L2; monotone regime begins at L2 |
-| Δp | −0.75 | non-monotone; L1 overshoots, L2 undershoots |
+| QoI | L1→L2 | L2→L3 | note |
+|---|---|---|---|
+| C_D | +0.97 | +1.17 | first-order ✓ |
+| C_L (f-sc) | +3.88 | +1.46 | sign change L1→L2; monotone from L2 |
+| Δp | −0.03 | +0.37 | UNEXPLAINED flat at L1/L2; positive convergence at L3 |
 
 ### Surface stress results (secondary)
 
 | lvl | C_D_surf | \|ΔC_D\| | C_L_surf | f-sc |
 |---|---|---|---|---|
-| 1 | 5.39269 | 0.18685 | −0.08149 | 0.01651 |
-| 2 | 5.47386 | 0.10568 | 0.00199 | 0.00155 |
+| 1 | 5.41440 | 0.16514 | −0.07102 | 0.01463 |
+| 2 | 5.49830 | 0.08124 | 0.00087 | 0.00175 |
+| 3 | 5.54814 | 0.03139 | 0.01163 | 0.00018 |
 
 ### Notes
 
-- **C_D** converges at rate ≈ 1.0, consistent with first-order P1 elements. L2 value is 0.079‰ above the ST96 upper bound; L3 expected to enter the interval.
-- **C_L** at L1 is negative due to insufficient wake resolution on the graded coarse mesh; the graded fine zone (dist_max=3D) is necessary but not sufficient at res=32. At L2 the wake is resolved and C_L ∈ [0.0104, 0.0110] ✓. The sign change between L1 and L2 makes the L1→L2 rate meaningless.
-- **Δp** shows non-monotone convergence (L1 overshoots, L2 undershoots). Characteristic of GLS P1/P1 stabilization on coarse meshes; pressure convergence expected to become monotone at L3.
-- **Surface stress** is less accurate than the volume form at both levels, as expected for P1 elements (differentiating the velocity amplifies traction errors). The volume form is the authoritative estimate.
-- L2 wall time: 7168 s (≈ 2 h) on MacBook M5 Pro. The graded fine zone (dist_max=3D) increases cell count to 10716 vs 4652 for the ungraded mesh.
+- **C_D** converges at rate ≈1.0–1.2. L3 |ΔC_D|=0.013; L3 value 5.5928 is 0.003 above ST96 upper bound 5.59. Larger dt gives ~2.7× worse L2 accuracy vs prior 0.5·h_cyl run (see comparison table).
+- **C_L** sign change L1→L2 (wake under-resolved at L1). L3=0.01016, 0.0002 below ST96 lower bound 0.0104. Rate L2→L3 ≈1.5 (monotone regime confirmed).
+- **Δp — UNEXPLAINED:** flat at L1 (0.11533) and L2 (0.11528), then converging positively at L3 (0.11579, rate +0.37). The flat non-convergent behavior at L1/L2 is unexplained. L3 still outside [0.1172, 0.1176].
+- **Surface stress** is less accurate than the volume form at all levels. C_L_surf at L3 (0.01163) overshoots ST96 upper bound 0.0110.
 
-### Diagnosis variants (CANDIDATE — not adopted)
+### dt comparison — same meshes, two dt rules (2026-10-01 vs 2026-10-07)
 
-The following variants were tested during diagnosis (branch `st-2d1-diagnosis`) but rejected:
+| lvl | dt rule | dt | steps | C_D | \|ΔC_D\| | C_L | Δp | wall |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 0.5·h_cyl | 0.00490 | 3876 | 5.60199 | 0.02245 | −0.00743 | 0.11811 | 142 s |
+| 1 | time_step(U=0.3) | 0.01190 | 1600 | 5.63822 | 0.05868 | −0.00792 | 0.11533 | 62 s |
+| 2 | 0.5·h_cyl | 0.00245 | 7910 | 5.59079 | 0.01125 | 0.01077 ✓ | 0.11653 | 7168 s |
+| 2 | time_step(U=0.3) | 0.00584 | 3328 | 5.60940 | 0.02987 | 0.00936 | 0.11528 | 516 s |
 
-| CANDIDATE | description | outcome |
-|---|---|---|
-| dt×2 | dt = h_cyl (instead of 0.5·h_cyl) | no meaningful improvement in C_L; rejected |
-| steady-d1 | d1 = h/\|u\| (instead of standard) | unstable at L2; rejected |
+C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outside the ST96 interval. Δp behavior switches from non-monotone (overshoot/undershoot) to flat undershoot — unexplained in both cases.
+
+---
+
+## Verification — Schäfer-Turek 2D-2
+
+**Notebook:** `verification/schafer-turek-2d2.ipynb`  
+**Run date:** 2026-10-07 (L1+L2); L3 completed 2026-10-08 ~23:25 (started 2026-10-07 ~14:55)  
+**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Thread environment:** same as ST 2D-1 (bootstrap v1; single-threaded BLAS/OpenMP). Process CPU ~300% during L3: UNEXPLAINED (CANDIDATES: ipykernel threads, MPI progress threads). Wall times reflect single-threaded BLAS/OpenMP.  
+**Reference:** Schäfer & Turek (1996), 2D-2 unsteady: C_D_max∈[3.22,3.24], C_L_max∈[0.99,1.01], St∈[0.295,0.305], Δp∈[2.46,2.50]  
+**Scheme:** GLS stabilized P1/P1 NS, fractional step, 5 Newton iter/step, dt = time_step(msh, U_m=1.5, C_CFL=0.5) = 0.5·h_min/1.5  
+**Mesh:** graded (v6): dist_min=0.5D=0.05 m, dist_max=3D=0.30 m  
+**Domain:** [0, 2.2]×[0, 0.41], cylinder (0.2, 0.2, r=0.05), ν=1e-3, U_m=1.5, U_mean=(2/3)·U_m=1.0, Re=100  
+**Force (primary):** volume form; force_ref = −2/(U_mean²·D) = −20 (rho=1, D=0.1)  
+**Analysis:** last 5 complete lift periods (upward zero-crossings of C_L); C_D_max, C_L_max, St=f_lift·D/U_mean, Δp at t=t_CL_max+T_lift/2  
+**Run T:** 15.0 s (vortex shedding onset ~Re=100; ~7–8 lift cycles expected)
+
+### Results
+
+| lvl | res | segs | cells | dt | steps | T_lift | C_D_max | ✓ | C_L_max | ✓ | St | ✓ | Δp | ✓ | wall |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 32 | 32 | 2751 | 0.00238 | 6301 | 0.34273 | 3.2904 | ✗ | 0.7777 | ✗ | 0.2918 | ✗ | 2.5224 | ✗ | 230 s |
+| 2 | 64 | 64 | 10716 | 0.00117 | 12850 | 0.33491 | 3.2685 | ✗ | 1.0350 | ✗ | 0.2986 | ✓ | 2.5046 | ✗ | 1938 s |
+| 3 | 128 | 128 | 42601 | 0.000520 | 28847 | 0.33214 | 3.2409 | ✗ | 1.0011 | ✓ | 0.3011 | ✓ | 2.4884 | ✓ | 114797 s† |
+
+† L3 wall-clock, affected by sleep/suspend (run via nbconvert 2026-10-07–08). All three levels from the same nbconvert execution.
+
+### Convergence L1→L2→L3
+
+h_min = 3·dt: h1=0.00714, h2=0.00350, h3=0.00156 m. Refinement ratios: r12≈2.04, r23≈2.24 (graded mesh; not exactly 2). Apparent convergence orders from three-point Richardson extrapolation with actual h values.
+
+| QoI | L1 | L2 | L3 | ST96 interval | ΔL1→L2 | ΔL2→L3 | apparent order | note |
+|---|---|---|---|---|---|---|---|---|
+| C_D,max | 3.2904 | 3.2685 | 3.2409 | [3.22, 3.24] | −0.0219 | −0.0276 | UNEXPLAINED (≈−0.1) | differences grow; pre-asymptotic CANDIDATE |
+| C_L,max | 0.7777 | 1.0350 | 1.0011 | [0.99, 1.01] | +0.257 | −0.034 | not estimated | non-monotone; L1 severely under-resolved |
+| St | 0.2918 | 0.2986 | 0.3011 | [0.295, 0.305] | +0.0068 | +0.0025 | ≈ 1.5 | monotone ↑; enters interval at L2 |
+| Δp | 2.5224 | 2.5046 | 2.4884 | [2.46, 2.50] | −0.0178 | −0.0162 | ≈ 0.3 | monotone ↓; enters interval at L3 |
+| T_lift | 0.3427 | 0.3349 | 0.3321 | — | −0.0078 | −0.0028 | ≈ 1.6 | monotone ↓ |
+
+### Notes
+
+- **C_L,max at L1** = 0.778 — UNEXPLAINED: severely below reference (~1.0). Δ = −0.222. CANDIDATE: coarse mesh (h_min=0.00714 m) insufficient to sustain full-amplitude periodic wake at Re=100; not verified.
+- **Overshoots at L2:** C_D,max=3.268 (+0.028 above 3.24), C_L,max=1.035 (+0.025 above 1.01), Δp=2.505 (+0.005 above 2.50) — all above ST96 upper bounds. UNEXPLAINED: C_L,max overshoot is inconsistent with an over-dissipation argument (over-dissipation would reduce amplitude below reference, not above it); no adequate explanation in hand.
+- **C_D,max at L3** = 3.241 — outside interval (+0.001 above upper bound 3.240). Monotone decrease confirmed; UNEXPLAINED growing differences (0.0219 → 0.0276) suggest pre-asymptotic behavior at these resolutions.
+- **3 of 4 QoIs** (C_L,max, St, Δp) enter the ST96 interval at L3. C_D,max does not.
 
 ---
 

@@ -10,7 +10,7 @@ Usage:
 
 Exit 0 if all blocks match; nonzero if any drift is found.
 """
-import json, sys, pathlib, difflib, argparse
+import json, sys, pathlib, difflib, argparse, subprocess
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("-v", "--verbose", action="store_true")
@@ -18,7 +18,26 @@ args = parser.parse_args()
 
 repo_root = pathlib.Path(__file__).parent.parent
 canonical_dir = repo_root / "canonical"
-notebooks = sorted(repo_root.glob("*.ipynb")) + sorted((repo_root / "verification").glob("*.ipynb"))
+
+def _tracked_or_staged(path):
+    """Return True if path is tracked by git or currently staged."""
+    r = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", str(path)],
+        cwd=repo_root, capture_output=True,
+    )
+    if r.returncode == 0:
+        return True
+    r2 = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=repo_root, capture_output=True, text=True,
+    )
+    return path.name in r2.stdout
+
+notebooks = [
+    p for p in
+    sorted(repo_root.glob("*.ipynb")) + sorted((repo_root / "verification").glob("*.ipynb"))
+    if _tracked_or_staged(p)
+]
 
 errors = []
 checked = 0

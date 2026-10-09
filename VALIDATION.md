@@ -250,7 +250,7 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 ## Verification — Schäfer-Turek 2D-2
 
 **Notebook:** `verification/schafer-turek-2d2.ipynb`  
-**Run date:** 2026-10-07 (L1+L2); L3 started 2026-10-07 ~14:55  
+**Run date:** 2026-10-07 (L1+L2); L3 completed 2026-10-08 ~23:25 (started 2026-10-07 ~14:55)  
 **Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
 **Thread environment:** same as ST 2D-1 (bootstrap v1; single-threaded BLAS/OpenMP). Process CPU ~300% during L3: UNEXPLAINED (CANDIDATES: ipykernel threads, MPI progress threads). Wall times reflect single-threaded BLAS/OpenMP.  
 **Reference:** Schäfer & Turek (1996), 2D-2 unsteady: C_D_max∈[3.22,3.24], C_L_max∈[0.99,1.01], St∈[0.295,0.305], Δp∈[2.46,2.50]  
@@ -265,26 +265,30 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 
 | lvl | res | segs | cells | dt | steps | T_lift | C_D_max | ✓ | C_L_max | ✓ | St | ✓ | Δp | ✓ | wall |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 32 | 32 | 2751 | 0.00238 | 6301 | 0.34273 | 3.2904 | ✗ | 0.7777 | ✗ | 0.2918 | ✗ | 2.5224 | ✗ | 253 s |
-| 2 | 64 | 64 | 10716 | 0.00117 | 12850 | 0.33491 | 3.2685 | ✗ | 1.0350 | ✗ | 0.2986 | ✓ | 2.5046 | ✗ | 7688 s |
-| 3 | 128 | 128 | — | — | — | — | — | — | — | — | — | — | — | — | skipped‡ |
+| 1 | 32 | 32 | 2751 | 0.00238 | 6301 | 0.34273 | 3.2904 | ✗ | 0.7777 | ✗ | 0.2918 | ✗ | 2.5224 | ✗ | 230 s |
+| 2 | 64 | 64 | 10716 | 0.00117 | 12850 | 0.33491 | 3.2685 | ✗ | 1.0350 | ✗ | 0.2986 | ✓ | 2.5046 | ✗ | 1938 s |
+| 3 | 128 | 128 | 42601 | 0.000520 | 28847 | 0.33214 | 3.2409 | ✗ | 1.0011 | ✓ | 0.3011 | ✓ | 2.4884 | ✓ | 114797 s† |
 
-‡ L3 run separately (~18 h projected)
+† L3 wall-clock, affected by sleep/suspend (run via nbconvert 2026-10-07–08). All three levels from the same nbconvert execution.
 
-**Convergence L1→L2:**
+### Convergence L1→L2→L3
 
-| QoI | L1 | L2 | ST96 interval | direction | note |
-|---|---|---|---|---|---|
-| C_D,max | 3.2904 | 3.2685 | [3.22, 3.24] | ↓ toward | L2 above upper bound by 0.028 |
-| C_L,max | 0.7777 | 1.0350 | [0.99, 1.01] | ↑ toward | L1 severely under; L2 above upper bound by 0.025 |
-| St | 0.2918 | 0.2986 | [0.295, 0.305] | ↑ into ✓ | enters interval at L2 |
-| Δp | 2.5224 | 2.5046 | [2.46, 2.50] | ↓ toward | L2 above upper bound by 0.005 |
+h_min = 3·dt: h1=0.00714, h2=0.00350, h3=0.00156 m. Refinement ratios: r12≈2.04, r23≈2.24 (graded mesh; not exactly 2). Apparent convergence orders from three-point Richardson extrapolation with actual h values.
+
+| QoI | L1 | L2 | L3 | ST96 interval | ΔL1→L2 | ΔL2→L3 | apparent order | note |
+|---|---|---|---|---|---|---|---|---|
+| C_D,max | 3.2904 | 3.2685 | 3.2409 | [3.22, 3.24] | −0.0219 | −0.0276 | UNEXPLAINED (≈−0.1) | differences grow; pre-asymptotic CANDIDATE |
+| C_L,max | 0.7777 | 1.0350 | 1.0011 | [0.99, 1.01] | +0.257 | −0.034 | not estimated | non-monotone; L1 severely under-resolved |
+| St | 0.2918 | 0.2986 | 0.3011 | [0.295, 0.305] | +0.0068 | +0.0025 | ≈ 1.5 | monotone ↑; enters interval at L2 |
+| Δp | 2.5224 | 2.5046 | 2.4884 | [2.46, 2.50] | −0.0178 | −0.0162 | ≈ 0.3 | monotone ↓; enters interval at L3 |
+| T_lift | 0.3427 | 0.3349 | 0.3321 | — | −0.0078 | −0.0028 | ≈ 1.6 | monotone ↓ |
 
 ### Notes
 
-- **C_L,max at L1** = 0.778 — UNEXPLAINED: severely below reference (~1.0) and all other ST96 QoIs. Δ = 0.778 − 1.0 = −0.222. CANDIDATE: coarse mesh (h_cyl≈0.0098) insufficient to sustain full-amplitude periodic wake at Re=100; but this is not verified.
-- **Overshoots at L2:** C_D,max=3.268 (+0.028 above 3.24), C_L,max=1.035 (+0.025 above 1.01), Δp=2.505 (+0.005 above 2.50) — all above ST96 upper bounds. UNEXPLAINED: C_L,max overshoot is inconsistent with a dissipation argument (over-dissipation would damp amplitude below reference, not above it); no adequate explanation in hand.
-- **No predictions made** about L3 interval membership.
+- **C_L,max at L1** = 0.778 — UNEXPLAINED: severely below reference (~1.0). Δ = −0.222. CANDIDATE: coarse mesh (h_min=0.00714 m) insufficient to sustain full-amplitude periodic wake at Re=100; not verified.
+- **Overshoots at L2:** C_D,max=3.268 (+0.028 above 3.24), C_L,max=1.035 (+0.025 above 1.01), Δp=2.505 (+0.005 above 2.50) — all above ST96 upper bounds. UNEXPLAINED: C_L,max overshoot is inconsistent with an over-dissipation argument (over-dissipation would reduce amplitude below reference, not above it); no adequate explanation in hand.
+- **C_D,max at L3** = 3.241 — outside interval (+0.001 above upper bound 3.240). Monotone decrease confirmed; UNEXPLAINED growing differences (0.0219 → 0.0276) suggest pre-asymptotic behavior at these resolutions.
+- **3 of 4 QoIs** (C_L,max, St, Δp) enter the ST96 interval at L3. C_D,max does not.
 
 ---
 

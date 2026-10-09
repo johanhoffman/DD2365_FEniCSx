@@ -1,7 +1,7 @@
 # VALIDATION — DD2365_FEniCSx
 
 Records of legacy smoke tests (FEniCSx port vs legacy FEniCS/mshr) and numerical verification.
-All runs: fenicsx-0.11 conda env (python=3.14.6, dolfinx=0.11.0; environment.yml pins python=3.12 but env resolved to 3.14.6 on creation 2026-09-24), Apple Silicon M5.
+All runs: fenicsx-0.11 conda env (python=3.14.6, dolfinx=0.11.0; fenicsx-0.11 created 2026-09-24 without python pin — environment.yml with python=3.12 pin added later in PR #5, #10/#12), Apple Silicon M5.
 
 ## Thread environment note (diagnosed and corrected 2026-10-07)
 

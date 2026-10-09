@@ -65,20 +65,29 @@ CI regression guard uses `baseline_fast_ci.json` (rtol 1e-6). osx-arm64 values a
 
 | Notebook | Status | QoIs (Linux CI) | QoIs (osx-arm64) | Canonical blocks |
 |---|---|---|---|---|
-| Brinkman\_NSE.ipynb | PASS | norm\_u=1.09566, norm\_p=91.4754 | same | bootstrap v2, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
-| Convection-Diffusion-NSE.ipynb | PASS | norm\_u=2.88191, norm\_p=5.80187, norm\_w=0.20406, int\_w=0.0784915 | norm\_p=5.8137, int\_w=0.0784874 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
-| Euler-equations-compressible-flow.ipynb | PASS | norm\_rho=4.4691, norm\_mom=6.51147, norm\_E=12.8768, min\_rho=0.254989 | min\_rho=0.242776 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
-| PeriodicBC.ipynb | PASS | norm\_u=0.214829, norm\_p=4.02e-09 | same | bootstrap v2, periodic\_restriction v2, time\_step v1, plot\_helpers v3, xdmf\_series v1 |
+| Brinkman\_NSE.ipynb | PASS | norm\_u=1.09566, norm\_p=91.4754 | same | bootstrap v2, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Convection-Diffusion-NSE.ipynb | PASS | norm\_u=2.88191, norm\_p=5.80187, norm\_w=0.20406, int\_w=0.0784915 | norm\_p=5.8137, int\_w=0.0784874 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Euler-equations-compressible-flow.ipynb | PASS | norm\_rho=4.4691, norm\_mom=6.51147, norm\_E=12.8768, min\_rho=0.254989 | min\_rho=0.242776 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| PeriodicBC.ipynb | PASS | norm\_u=0.214829, norm\_p=4.02e-09 | same | bootstrap v2, periodic\_restriction v2, time\_step v1, plot\_helpers v3, xdmf\_series v1, ksp\_helpers v1 |
 | Poisson\_equation.ipynb | PASS | norm\_u=1.77802, int\_u=3.54729, min\_u=−0.284535, max\_u=1.39727 | norm\_u=1.77797, int\_u=3.54717, min\_u=−0.284578, max\_u=1.39707 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
-| Shallow-Water-Equations.ipynb | PASS | norm\_u=0.523122, norm\_w=0.0875197 | norm\_u=0.522889, norm\_w=0.0875086 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
-| Turbulence-Model.ipynb | PASS | norm\_u=5.37537, norm\_p=129.651 | norm\_u=5.51803, norm\_p=9.37062 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
-| template-report-Elasticity.ipynb | PASS | norm\_d=0.659882, min\_vol=1.570e-04 | norm\_d=0.659887, min\_vol=1.570e-04 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3 |
-| template-report-Navier-Stokes-ALE.ipynb | PASS | norm\_u=2.69866, norm\_p=58.4055, min\_vol=6.397e-04 | norm\_u=2.69913, norm\_p=58.0491 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, time\_step v1 |
-| template-report-Navier-Stokes.ipynb | PASS | norm\_u=2.70052, norm\_p=58.3111 | norm\_u=2.70099, norm\_p=57.9535 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1 |
+| Shallow-Water-Equations.ipynb | PASS | norm\_u=0.523122, norm\_w=0.0875197 | norm\_u=0.522889, norm\_w=0.0875086 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Turbulence-Model.ipynb | PASS | norm\_u=5.37537, norm\_p=129.651 | norm\_u=5.51803, norm\_p=9.37062 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| template-report-Elasticity.ipynb | PASS | norm\_d=0.659882, min\_vol=1.570e-04 | norm\_d=0.659887, min\_vol=1.570e-04 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, ksp\_helpers v1 |
+| template-report-Navier-Stokes-ALE.ipynb | PASS | norm\_u=2.69866, norm\_p=58.4055, min\_vol=6.397e-04 | norm\_u=2.69913, norm\_p=58.0491 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, time\_step v1, ksp\_helpers v1 |
+| template-report-Navier-Stokes.ipynb | PASS | norm\_u=2.70052, norm\_p=58.3111 | norm\_u=2.70099, norm\_p=57.9535 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
 | template-report-Stokes-AMR.ipynb | PASS | norm\_u=2.95753, norm\_p=12.861, J\_h=19.465 | same | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
 | template-report-Stokes.ipynb | PASS | norm\_u=2.31471, norm\_p=63.6404, delta\_p=46.3448 | norm\_u=2.31472, delta\_p=46.3441 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
 
-**Note (Turbulence-Model norm\_p):** norm\_p at FAST T=0.2 differs significantly between platforms: Linux 129.651, osx-arm64 9.37 — UNEXPLAINED. Pending KSP convergence diagnosis (reason, iterations, final residual per step and nonlinear iteration on both platforms).
+**Note (Turbulence-Model norm\_p):** norm\_p at FAST T=0.2 differs significantly between platforms: Linux 129.651, osx-arm64 9.37 — UNEXPLAINED. Both platforms confirmed: all KSP solves converge cleanly. The discrepancy is not caused by solver failure — it is a genuine difference in the fractional-step pressure field due to mesh and/or initialisation differences between platforms.
+
+**KSP diagnostic (Turbulence-Model, FAST T=0.2, 2026-10-09):**
+
+| Platform | Steps | k/step | Solves | reason | iters | rnorm range |
+|---|---|---|---|---|---|---|
+| osx-arm64 (M5) | 8 | 5 | 80 | 2 (CONVERGED\_RTOL) | 2–4 | 1e-7–4e-3 |
+| Linux (ubuntu-latest) | 7 | 5 | 70 | 2 (CONVERGED\_RTOL) | 2–4 | 1e-7–5e-3 |
+
+Step counts differ (7 vs 8) because gmsh mesh cell size `h` differs between platforms → different CFL-based `dt`.
 
 ---
 

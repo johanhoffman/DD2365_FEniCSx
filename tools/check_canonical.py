@@ -18,7 +18,7 @@ args = parser.parse_args()
 
 repo_root = pathlib.Path(__file__).parent.parent
 canonical_dir = repo_root / "canonical"
-notebooks = sorted(repo_root.glob("*.ipynb"))
+notebooks = sorted(repo_root.glob("*.ipynb")) + sorted((repo_root / "verification").glob("*.ipynb"))
 
 errors = []
 checked = 0
@@ -26,6 +26,23 @@ checked = 0
 for nb_path in notebooks:
     with open(nb_path) as f:
         nb = json.load(f)
+
+    # Verify bootstrap is the first code cell (allowing one leading comment-only header cell)
+    code_cells = [c for c in nb.get("cells", []) if c.get("cell_type") == "code"]
+    if code_cells:
+        first_src = "".join(code_cells[0].get("source", []))
+        is_comment_only = all(
+            ln.startswith("#") or not ln.strip()
+            for ln in first_src.splitlines()
+        )
+        candidate_idx = 1 if is_comment_only and len(code_cells) > 1 else 0
+        candidate_src = "".join(code_cells[candidate_idx].get("source", []))
+        if "# --- canonical: bootstrap" not in candidate_src:
+            errors.append(
+                f"{nb_path.name}: bootstrap canonical block is not the first "
+                f"(or second, after a comment-only header) code cell"
+            )
+
     for cell in nb.get("cells", []):
         if cell.get("cell_type") != "code":
             continue

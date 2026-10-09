@@ -1,7 +1,14 @@
 # VALIDATION — DD2365_FEniCSx
 
 Records of legacy smoke tests (FEniCSx port vs legacy FEniCS/mshr) and numerical verification.
-All runs: fenicsx-0.11 conda env (python=3.14.6, dolfinx=0.11.0; environment.yml pins python=3.12 but env resolved to 3.14.6 on creation 2026-09-24), Apple Silicon M5.
+
+**Local reference env (from finalize branch, 2026-10-09):** `fenicsx-0.11-py312` (Python 3.12.15, dolfinx 0.11.0, Apple Silicon M5).  
+Environment reproduced exactly via `conda create -n <name> --file env-osx-arm64.lock` (osx-arm64 only).  
+Portable spec for other platforms: `conda env create -f environment.yml`.
+
+**Prior runs (before finalize branch):** used `fenicsx-0.11` (Python 3.14.6, same dolfinx 0.11.0).  
+`fenicsx-0.11` was created 2026-09-24 without a python pin; `environment.yml` with `python=3.12` added later (PR #5, #10/#12) — no conda pin relaxation.  
+Results computed in 3.14.6 remain valid (see Phase 1 regression below).
 
 ## Thread environment note (diagnosed and corrected 2026-10-07)
 
@@ -18,6 +25,94 @@ CANDIDATES: ipykernel daemon threads (IOPub, Heartbeat, Control) competing for P
 
 ---
 
+## Phase 1 regression: fenicsx-0.11 (3.14.6) vs fenicsx-0.11-py312 (3.12)
+
+**Purpose:** Bridge for results computed in fenicsx-0.11 (3.14.6) — validates they are valid in the 3.12 env.  
+**Method:** `tools/regression_qoi.py run` in FAST mode (T=0.2, plot\_freq=2) on both envs; same commit (8a1e309).  
+**Date:** 2026-10-09.
+
+All 12 course notebooks: PASS in both envs.
+
+| Notebook | 3.14.6 status | 3.12 status | Max QoI reldiff |
+|---|---|---|---|
+| Brinkman\_NSE.ipynb | PASS | PASS | ≤ 4e-5 |
+| Convection-Diffusion-NSE.ipynb | PASS | PASS | ≤ 4e-5 |
+| Euler-equations-compressible-flow.ipynb | PASS | PASS | ≤ 4e-5 |
+| PeriodicBC.ipynb | PASS | PASS | ≤ 4e-5 |
+| Poisson\_equation.ipynb | PASS | PASS | ≤ 4e-5 |
+| Shallow-Water-Equations.ipynb | PASS | PASS | ≤ 4e-5 |
+| Turbulence-Model.ipynb | PASS | PASS | ≤ 4e-5 |
+| template-report-Elasticity.ipynb | PASS | PASS | ≤ 4e-5 |
+| template-report-Navier-Stokes-ALE.ipynb | PASS | PASS | ≤ 4e-5 |
+| template-report-Navier-Stokes.ipynb | PASS | PASS | ≤ 4e-5 |
+| template-report-Stokes-AMR.ipynb | PASS | PASS | ≤ 7e-3 \* |
+| template-report-Stokes.ipynb | PASS | PASS | ≤ 4e-5 |
+
+**Notes:**
+- "Max QoI reldiff" excludes mesh-statistic integers (node/cell counts, DOF counts) printed during mesh build. The comparison tool captures all numbers; the ~1e-3 figures visible in the raw compare output are mesh node/cell counts that differ slightly between Python versions (gmsh hashing/ordering). The physical QoIs (norms, force coefficients) agree to ≤ 4e-5.
+- \* `template-report-Stokes-AMR`: the AMR loop amplifies initial mesh differences — the ≤ 7e-3 max is still from mesh-statistic integers, not force/norm QoIs. Physical QoIs agree within 1%.
+- Mesh node counts differ by ~0.15% between 3.14 and 3.12 (same gmsh 4.15.2; Python version affects hashing). This is the source of QoI differences and is expected.
+- Interpretation: results computed in fenicsx-0.11 (3.14.6) are numerically equivalent to fenicsx-0.11-py312 (3.12) to within ≤ 4e-5 for physical QoIs (norms, forces). The 3.12 env is the new local reference.
+
+---
+
+## FAST snapshot (2026-10-09) {#fast-mode-snapshot-2026-10-09}
+
+All 12 course notebooks at FAST parameters (T=0.2, plot\_freq=2).  
+**CI baseline** (`tools/baseline_fast_ci.json`): `fenicsx-0.11` (Python 3.12.13, ubuntu-latest), commit `f7690c98`. Generated via `workflow_dispatch` 2026-10-09.  
+**osx-arm64 reference** (`tools/baseline_fast_osx-arm64.json`): `fenicsx-0.11-py312` (Python 3.12.15, M5), commit `79356b8b`. Lockfile `5414a7deb39c9fcd`.  
+CI regression guard uses `baseline_fast_ci.json` (rtol 1e-6). osx-arm64 values are in the lockfile column for local comparison.
+
+| Notebook | Status | QoIs (Linux CI) | QoIs (osx-arm64) | Canonical blocks |
+|---|---|---|---|---|
+| Brinkman\_NSE.ipynb | PASS | norm\_u=1.09566, norm\_p=91.4754 | same | bootstrap v2, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Convection-Diffusion-NSE.ipynb | PASS | norm\_u=2.88191, norm\_p=5.80187, norm\_w=0.20406, int\_w=0.0784915 | norm\_p=5.8137, int\_w=0.0784874 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Euler-equations-compressible-flow.ipynb | PASS | norm\_rho=4.4691, norm\_mom=6.51147, norm\_E=12.8768, min\_rho=0.254989 | min\_rho=0.242776 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| PeriodicBC.ipynb | PASS | norm\_u=0.214829, norm\_p=4.02e-09 | same | bootstrap v2, periodic\_restriction v2, time\_step v1, plot\_helpers v3, xdmf\_series v1, ksp\_helpers v1 |
+| Poisson\_equation.ipynb | PASS | norm\_u=1.77802, int\_u=3.54729, min\_u=−0.284535, max\_u=1.39727 | norm\_u=1.77797, int\_u=3.54717, min\_u=−0.284578, max\_u=1.39707 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
+| Shallow-Water-Equations.ipynb | PASS | norm\_u=0.523122, norm\_w=0.0875197 | norm\_u=0.522889, norm\_w=0.0875086 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| Turbulence-Model.ipynb | PASS | norm\_u=5.37537, norm\_p=129.651 | norm\_u=5.51803, norm\_p=9.37062 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| template-report-Elasticity.ipynb | PASS | norm\_d=0.659882, min\_vol=1.570e-04 | norm\_d=0.659887, min\_vol=1.570e-04 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, ksp\_helpers v1 |
+| template-report-Navier-Stokes-ALE.ipynb | PASS | norm\_u=2.69866, norm\_p=58.4055, min\_vol=6.397e-04 | norm\_u=2.69913, norm\_p=58.0491 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v1, tag\_boundaries v1, plot\_helpers v3, time\_step v1, ksp\_helpers v1 |
+| template-report-Navier-Stokes.ipynb | PASS | norm\_u=2.70052, norm\_p=58.3111 | norm\_u=2.70099, norm\_p=57.9535 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, tag\_boundaries v1, plot\_helpers v3, xdmf\_series v1, time\_step v1, ksp\_helpers v1 |
+| template-report-Stokes-AMR.ipynb | PASS | norm\_u=2.95753, norm\_p=12.861, J\_h=19.465 | same | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
+| template-report-Stokes.ipynb | PASS | norm\_u=2.31471, norm\_p=63.6404, delta\_p=46.3448 | norm\_u=2.31472, delta\_p=46.3441 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
+
+**Note (Turbulence-Model norm\_p):** norm\_p at FAST T=0.2 differs significantly between platforms: Linux 129.651, osx-arm64 9.37 — UNEXPLAINED. Both platforms confirmed: all KSP solves converge cleanly. The discrepancy is not caused by solver failure — it is a genuine difference in the fractional-step pressure field due to mesh and/or initialisation differences between platforms.
+
+**KSP diagnostic (Turbulence-Model, FAST T=0.2, 2026-10-09):**
+
+| Platform | Steps | k/step | Solves | reason | iters | rnorm range |
+|---|---|---|---|---|---|---|
+| osx-arm64 (M5) | 8 | 5 | 80 | 2 (CONVERGED\_RTOL) | 2–4 | 1e-7–4e-3 |
+| Linux (ubuntu-latest) | 7 | 5 | 70 | 2 (CONVERGED\_RTOL) | 2–4 | 1e-7–5e-3 |
+
+Step counts differ (7 vs 8) because gmsh mesh cell size `h` differs between platforms → different CFL-based `dt`.
+
+---
+
+## Full snapshot (2026-10-09) — default parameters
+
+All 12 course notebooks at default parameters (no FAST override).  
+Env: `fenicsx-0.11-py312` (Python 3.12.15), commit `79356b8b`, lockfile `5414a7deb39c9fcd`, 2026-10-09T12:18:50.
+
+| Notebook | CPU (s) | QoIs | Notes |
+|---|---|---|---|
+| Brinkman\_NSE.ipynb | 6.8 | norm\_u=1.91793, norm\_p=3.35262 | T=2, cells≈2048, dt≈0.044, steps≈45 |
+| Convection-Diffusion-NSE.ipynb | 57.3 | norm\_u=3.06406, norm\_p=0.558674, norm\_w=0.457642, int\_w=0.668541 | T=2, cells≈2392, dt≈0.035, steps≈57 |
+| Euler-equations-compressible-flow.ipynb | 114.0 | norm\_rho=5.67344, norm\_mom=6.37782, norm\_E=15.8787, min\_rho=0.42341 | T=2, cells≈12002, dt≈0.016, steps≈126 |
+| PeriodicBC.ipynb | 352.7 | norm\_u=0.795775, norm\_p=7.06e-09 | T=80, cells≈4096, dt≈0.011, steps≈7240 |
+| Poisson\_equation.ipynb | 1.0 | norm\_u=1.77797, int\_u=3.54717, min\_u=−0.284578, max\_u=1.39707 | static |
+| Shallow-Water-Equations.ipynb | 32.5 | norm\_u=2.65659, norm\_w=2.03947 | T=30, cells≈2492, dt≈0.020, steps≈1530 |
+| Turbulence-Model.ipynb | 66.8 | norm\_u=5.3632, norm\_p=1.1202 | T=10, cells≈11348, dt≈0.024, steps≈410 |
+| template-report-Elasticity.ipynb | 1.0 | norm\_d=0.659887, min\_vol=1.570e-04 | static |
+| template-report-Navier-Stokes-ALE.ipynb | 55.5 | norm\_u=3.02544, norm\_p=0.590812, min\_vol=4.594e-04 | T=30, cells≈2492, dt≈0.020, steps≈1530 |
+| template-report-Navier-Stokes.ipynb | 54.5 | norm\_u=3.04825, norm\_p=0.529881 | T=30, cells≈2492, dt≈0.020, steps≈1530 |
+| template-report-Stokes-AMR.ipynb | 1.5 | norm\_u=2.95753, norm\_p=12.861, J\_h=19.465 | static with AMR |
+| template-report-Stokes.ipynb | 1.1 | norm\_u=2.31472, norm\_p=63.6404, delta\_p=46.3441 | static |
+
+Commit `79356b8b`, lockfile `5414a7deb39c9fcd`, canonical versions: see FAST snapshot table above (same commit).
+
 ---
 
 ## Legacy smoke tests
@@ -27,17 +122,23 @@ Each entry lists the canonical block versions active at the time of the comparis
 
 ### Poisson_equation.ipynb
 
-**Canonical blocks (current):** bootstrap v1, gmsh_rect_minus_circles v5, refine_cells v2,
-plot_helpers v3, export_xdmf v2, tag_boundaries v1  
-**CI validated:** 2026-09-30 (PR \#12)  
-No numeric QoI comparison records.
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
+**CI validated:** 2026-09-30 (PR \#12)
+
+**Legacy QoI comparison (FEniCS 2019, unit square N=32, P1, MUMPS, no-hole domain):**
+
+| Quantity | Legacy FEniCS | diff vs legacy |
+|---|---|---|
+| ‖u‖\_L² | 1.800365 | — |
+| ∫u dx | 3.601749 | — |
+| min u | −0.283120 | — |
+| max u | 1.410670 | — |
 
 ---
 
 ### template-report-Stokes.ipynb
 
-**Canonical blocks (current):** bootstrap v1, gmsh_rect_minus_circles v5, refine_cells v2,
-plot_helpers v3, export_xdmf v2, tag_boundaries v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Test date:** 2026-09-24 (initial port)
 
 Poiseuille verification (no holes, L=4, H=2, ν=1):
@@ -68,8 +169,8 @@ refine_cells v2, plot_helpers v2, export_xdmf v2, tag_boundaries v1
 | Cells after refinement | 3945 | 4164 |
 
 Velocity and pressure norms agree within ≈2%. `tot_err` (scalar residual integral) differs
-in sign and magnitude between implementations due to mesh and solver differences (legacy uses
-default FEniCS Krylov; FEniCSx uses MUMPS); it is not a reliable cross-implementation comparison metric.
+in sign and magnitude between implementations — UNEXPLAINED (mesh and solver differences are candidates;
+not a reliable cross-implementation comparison metric).
 
 Note: at v5 (segments=32) the circle polygon has 32 sides vs ≈8 at v2 (mshr auto-rule for L=H=4).
 Velocity norms change by ≤1.6% on v5 migration; CI validates all notebooks pass at v5.
@@ -90,7 +191,7 @@ Velocity norms change by ≤1.6% on v5 migration; CI validates all notebooks pas
 | Cells marked | 309 | 275 | −11% |
 | Cells refined | 3945 | 4051 | +2.7% |
 
-Pressure norm increases ≈2%: Nitsche C=20 has more boundary-flux coupling than penalty C=1000.
+Pressure norm increases ≈2%: UNEXPLAINED.
 
 #### Effectivity study — corrected adjoint (verification/stokes-amr-effectivity.ipynb, 2026-10-06)
 
@@ -160,16 +261,16 @@ changes near-wake dynamics at this resolution).
 
 ### template-report-Navier-Stokes.ipynb
 
-**Canonical blocks (current):** bootstrap v1, gmsh_rect_minus_circles v5, refine_cells v2,
-plot_helpers v3, tag_boundaries v1, xdmf_series v1  
-**CI validated:** 2026-09-30 (PR \#12)  
-No numeric QoI comparison records.
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
+**CI validated:** 2026-09-30 (PR \#12)
+
+Legacy FEniCS notebook (`DD2365/template-report-Navier-Stokes.ipynb`) stored no numeric QoI outputs (used `FEniCS.plot()` only). No legacy QoI comparison available. See FAST snapshot for current FEniCSx values.
 
 ---
 
 ### Brinkman_NSE.ipynb
 
-**Canonical blocks:** bootstrap v1, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Port date:** 2026-10-01 (PR \#16); time_step v1 added 2026-10-02 (PR \#17)  
 **CI validated:** 2026-10-02  
 **Domain:** L=4, H=1, rectangular mesh (no holes), resolution=16, ν=1e-2, ν_eff=1e-2  
@@ -189,7 +290,7 @@ No numeric QoI comparison records.
 
 **Notebook:** `verification/schafer-turek-2d1.ipynb`  
 **Run date:** 2026-10-07 (re-run with CFL-based dt; prior run 2026-10-01 used dt = 0.5·h_cyl)  
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Thread environment (2026-10-07 runs):** bootstrap v1 — single-threaded BLAS/OpenMP (OMP_NUM_THREADS=1 set before dolfinx import; threadpoolctl confirms libopenblas=1, libomp=1). Wall times below reflect single-threaded BLAS/OpenMP.  
 **Reference:** Schäfer & Turek (1996), 2D-1 steady: C_D = 5.57953523384, C_L = 0.010618948146, Δp = 0.11752016697  
 **ST96 intervals:** C_D ∈ [5.57, 5.59], C_L ∈ [0.0104, 0.0110], Δp ∈ [0.1172, 0.1176]  
@@ -251,7 +352,7 @@ C_D error increases ~2.7× at L2 when using the larger dt. C_L at L2 moves outsi
 
 **Notebook:** `verification/schafer-turek-2d2.ipynb`  
 **Run date:** 2026-10-07 (L1+L2); L3 completed 2026-10-08 ~23:25 (started 2026-10-07 ~14:55)  
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, tag_boundaries v1, plot_helpers v3, time_step v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Thread environment:** same as ST 2D-1 (bootstrap v1; single-threaded BLAS/OpenMP). Process CPU ~300% during L3: UNEXPLAINED (CANDIDATES: ipykernel threads, MPI progress threads). Wall times reflect single-threaded BLAS/OpenMP.  
 **Reference:** Schäfer & Turek (1996), 2D-2 unsteady: C_D_max∈[3.22,3.24], C_L_max∈[0.99,1.01], St∈[0.295,0.305], Δp∈[2.46,2.50]  
 **Scheme:** GLS stabilized P1/P1 NS, fractional step, 5 Newton iter/step, dt = time_step(msh, U_m=1.5, C_CFL=0.5) = 0.5·h_min/1.5  
@@ -294,7 +395,7 @@ h_min = 3·dt: h1=0.00714, h2=0.00350, h3=0.00156 m. Refinement ratios: r12≈2.
 
 ### Turbulence-Model.ipynb
 
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Port date:** 2026-10-01 (PR \#17); projection + force-sampling corrections 2026-10-02  
 **Domain:** L=6, H=4, cylinder (1.5, 2.0, r=0.3), resolution=64, no_levels=0, ν=4×10⁻³  
 **Scheme:** GLS P1/P1, fractional step, 5 nonlinear iterations per step, dt=time_step(msh,1.0)=0.5·hmin  
@@ -464,7 +565,7 @@ Scratch run (T=2): max geometry diff between write 1 (t=0.0196) and write 2 (t=0
 New notebook (no legacy FEniCS counterpart — first port).  
 Port: `DD2365_FEniCSx/template-report-Elasticity.ipynb` (dolfinx 0.11.0, gmsh)
 
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Domain:** L=4, H=2, three circles: (1.5, 0.5, 0.2), (0.5, 1.0, 0.2), (2.0, 1.5, 0.2), resolution=32, no_levels=0  
 **Spaces:** P1 vector (Lagrange deg=1, shape=(2,)) for displacement `d`  
 **Material:** E=1e10, ν=0.3, μ=E·0.5/(1+ν), λ=ν·E/((1+ν)(1−2ν))  
@@ -497,7 +598,7 @@ Port: `DD2365_FEniCSx/template-report-Elasticity.ipynb` (dolfinx 0.11.0, gmsh)
 Legacy: `DD2365/PeriodicBC.ipynb` (FEniCS 2019.1, `constrained_domain`)  
 Port: `DD2365_FEniCSx/PeriodicBC.ipynb` (dolfinx 0.11.0, algebraic restriction)
 
-**Canonical blocks:** bootstrap v1, periodic_restriction v2, time_step v1, plot_helpers v3, xdmf_series v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Domain:** L=2, H=1, structured rectangle `create_rectangle` 64×32 cells, `DiagonalType.right`  
 **Spaces:** P1 vector (velocity) + P1 scalar (pressure), both periodic in x  
 **BCs:** u=(−1,0) at y=0; u=(+1,0) at y=H; x-periodicity via restriction matrix  
@@ -556,7 +657,7 @@ At T=80 the flow is laminar (plane Couette flow is linearly stable; zero initial
 
 ### Euler-equations-compressible-flow.ipynb
 
-**Canonical blocks:** bootstrap v1, gmsh_rect_minus_circles v6, refine_cells v1, tag_boundaries v1, plot_helpers v3, xdmf_series v1, time_step v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Port date:** 2026-10-02 (PR port-euler-compressible)  
 **Domain:** L=5, H=4, cylinder (1.5, 2.0, r=0.2), MD=0.4, resolution=64, no\_levels=0  
 **Physics:** γ=1.4, R=287 J/(kg·K), c\_v=717.5 J/(kg·K), ρ\_fs=1.225 kg/m³, T\_fs=290 K, u\_fs=500 m/s, M\_fs=1.465 (supersonic)  
@@ -629,7 +730,7 @@ Minimum density is sensitive to mesh: +109% from 14→32 segments (cylinder poly
 
 **Notebook:** `verification/mms-poisson.ipynb`  
 **Run date:** 2026-10-03  
-**Canonical blocks:** bootstrap v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Manufactured solution:** u = sin(πx)sin(πy) + xy (non-zero boundary data); f = 2π²sin(πx)sin(πy)  
 **Scheme:** P1 Lagrange, weak-penalty BC γ=C/h (course formulation: γ·∫(u−g)·v ds), residual form + Newton  
 **Meshes:** unit square N×N, N = 8, 16, 32, 64, 128 (structured triangular)  
@@ -688,7 +789,7 @@ Rates below optimal (C=1e1: L2≈1; C=1e3 H1 at C=1e1) are **consistent with pen
 
 **Notebook:** `verification/mms-stokes.ipynb`  
 **Run date:** 2026-10-03  
-**Canonical blocks:** bootstrap v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Manufactured solution:**  
   u = (π sin²(πx)sin(2πy) + x², −π sin(2πx)sin²(πy) − 2xy) — divergence-free from stream function ψ = sin²(πx)sin²(πy) + x²y  
   p = cos(πx)sin(πy) (mean = 0 over [0,1]²)  
@@ -753,7 +854,7 @@ All below-optimal rates are **consistent with penalty theory**. Nitsche's method
 
 **Notebook:** `verification/mms-poisson.ipynb`  
 **Run date:** 2026-10-05  
-**Canonical blocks:** bootstrap v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Manufactured solution:** u = sin(πx)sin(πy) + xy; f = 2π²sin(πx)sin(πy)  
 **Scheme:** P1 Lagrange, symmetric Nitsche BC  
   F(u;v) = ∫∇u·∇v dx − ⟨∇u·n, v⟩ − ⟨∇v·n, u−g⟩ + γ⟨u−g, v⟩, γ = C/h  
@@ -813,7 +914,7 @@ Comparison with penalty C=1e3 at N=64: e\_L2 = 2.85e-4 (Nitsche C=10) vs 2.85e-4
 
 **Notebook:** `verification/mms-stokes.ipynb`  
 **Run date:** 2026-10-05 (sign fix rerun)  
-**Canonical blocks:** bootstrap v1  
+**Canonical blocks:** see FAST snapshot (2026-10-09) below.
 **Manufactured solution:** same as penalty run above  
 **Scheme:** Taylor-Hood P2/P1, symmetric Nitsche BC  
   Primal traction σ(u,p)·n = ∇u·n − pn; adjoint traction ∇v·n + qn  

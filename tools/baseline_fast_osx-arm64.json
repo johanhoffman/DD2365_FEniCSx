@@ -1,0 +1,235 @@
+{
+  "_meta": {
+    "env": "fenicsx-0.11-py312",
+    "python_version": "3.12.15",
+    "commit": "b7e7beb622c23614214087ce8ca4b25861000b2f",
+    "lockfile_sha256_prefix": "5414a7deb39c9fcd",
+    "timestamp": "2026-10-09T16:58:26",
+    "mode": "fast"
+  },
+  "Brinkman_NSE.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.2561719417572021,
+    "code_cells": 19,
+    "qois": {
+      "norm_u": 1.09566,
+      "norm_p": 91.4754
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "Convection-Diffusion-NSE.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.5593202114105225,
+    "code_cells": 20,
+    "qois": {
+      "norm_u": 2.88194,
+      "norm_p": 5.8137,
+      "norm_w": 0.204052,
+      "int_w": 0.0784874
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v2",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "Euler-equations-compressible-flow.ipynb": {
+    "status": "PASS",
+    "elapsed": 3.881986141204834,
+    "code_cells": 23,
+    "qois": {
+      "norm_rho": 4.4692,
+      "norm_mom": 6.51084,
+      "norm_E": 12.8775,
+      "min_rho": 0.242776
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "PeriodicBC.ipynb": {
+    "status": "PASS",
+    "elapsed": 2.220582962036133,
+    "code_cells": 19,
+    "qois": {
+      "norm_u": 0.214829,
+      "norm_p": 4.01886e-09
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "periodic_restriction": "v2",
+      "time_step": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "Poisson_equation.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.1288418769836426,
+    "code_cells": 14,
+    "qois": {
+      "norm_u": 1.77797,
+      "int_u": 3.54717,
+      "min_u": -0.284578,
+      "max_u": 1.39707
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v2",
+      "plot_helpers": "v3",
+      "export_xdmf": "v2",
+      "tag_boundaries": "v1"
+    }
+  },
+  "Shallow-Water-Equations.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.3489651679992676,
+    "code_cells": 21,
+    "qois": {
+      "norm_u": 0.522889,
+      "norm_w": 0.0875086
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "Turbulence-Model.ipynb": {
+    "status": "PASS",
+    "elapsed": 2.6929919719696045,
+    "code_cells": 21,
+    "qois": {
+      "norm_u": 5.51803,
+      "norm_p": 9.37062
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "template-report-Elasticity.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.1234519481658936,
+    "code_cells": 16,
+    "qois": {
+      "norm_d": 0.659887,
+      "min_vol": 0.000156957
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "ksp_helpers": "v1"
+    }
+  },
+  "template-report-Navier-Stokes-ALE.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.4910099506378174,
+    "code_cells": 22,
+    "qois": {
+      "norm_u": 2.69913,
+      "norm_p": 58.0491,
+      "min_vol": 0.00063973
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v1",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "template-report-Navier-Stokes.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.7149999141693115,
+    "code_cells": 22,
+    "qois": {
+      "norm_u": 2.70099,
+      "norm_p": 57.9535
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v2",
+      "tag_boundaries": "v1",
+      "plot_helpers": "v3",
+      "xdmf_series": "v1",
+      "time_step": "v1",
+      "ksp_helpers": "v1"
+    }
+  },
+  "template-report-Stokes-AMR.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.3888719081878662,
+    "code_cells": 16,
+    "qois": {
+      "norm_u": 2.95753,
+      "norm_p": 12.861,
+      "J_h": 19.465
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v2",
+      "plot_helpers": "v3",
+      "export_xdmf": "v2",
+      "tag_boundaries": "v1"
+    }
+  },
+  "template-report-Stokes.ipynb": {
+    "status": "PASS",
+    "elapsed": 1.169722080230713,
+    "code_cells": 14,
+    "qois": {
+      "norm_u": 2.31472,
+      "norm_p": 63.6404,
+      "delta_p": 46.3441
+    },
+    "canonical": {
+      "bootstrap": "v2",
+      "gmsh_rect_minus_circles": "v6",
+      "refine_cells": "v2",
+      "plot_helpers": "v3",
+      "export_xdmf": "v2",
+      "tag_boundaries": "v1"
+    }
+  }
+}

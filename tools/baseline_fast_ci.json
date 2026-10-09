@@ -2,15 +2,15 @@
   "_meta": {
     "env": "fenicsx-0.11",
     "python_version": "3.12.13",
-    "commit": "f7690c9814fe25fe9ced46056bf23a2f2e70392e",
+    "commit": "a28a11a28f713bc73d597c297298ce9999024110",
     "lockfile_sha256_prefix": "5414a7deb39c9fcd",
-    "timestamp": "2026-10-09T14:13:25",
+    "timestamp": "2026-10-09T15:01:04",
     "mode": "fast"
   },
   "Brinkman_NSE.ipynb": {
     "status": "PASS",
-    "elapsed": 2.382964849472046,
-    "code_cells": 18,
+    "elapsed": 2.400468349456787,
+    "code_cells": 19,
     "qois": {
       "norm_u": 1.09566,
       "norm_p": 91.4754
@@ -21,13 +21,14 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "Convection-Diffusion-NSE.ipynb": {
     "status": "PASS",
-    "elapsed": 3.9174540042877197,
-    "code_cells": 19,
+    "elapsed": 3.9092440605163574,
+    "code_cells": 20,
     "qois": {
       "norm_u": 2.88191,
       "norm_p": 5.80187,
@@ -41,13 +42,14 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "Euler-equations-compressible-flow.ipynb": {
     "status": "PASS",
-    "elapsed": 11.804770946502686,
-    "code_cells": 22,
+    "elapsed": 11.757377624511719,
+    "code_cells": 23,
     "qois": {
       "norm_rho": 4.4691,
       "norm_mom": 6.51147,
@@ -61,13 +63,14 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "PeriodicBC.ipynb": {
     "status": "PASS",
-    "elapsed": 7.003474235534668,
-    "code_cells": 18,
+    "elapsed": 6.994027376174927,
+    "code_cells": 19,
     "qois": {
       "norm_u": 0.214829,
       "norm_p": 4.01886e-09
@@ -77,12 +80,13 @@
       "periodic_restriction": "v2",
       "time_step": "v1",
       "plot_helpers": "v3",
-      "xdmf_series": "v1"
+      "xdmf_series": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "Poisson_equation.ipynb": {
     "status": "PASS",
-    "elapsed": 1.844376564025879,
+    "elapsed": 1.7715156078338623,
     "code_cells": 14,
     "qois": {
       "norm_u": 1.77802,
@@ -101,8 +105,8 @@
   },
   "Shallow-Water-Equations.ipynb": {
     "status": "PASS",
-    "elapsed": 3.0847678184509277,
-    "code_cells": 20,
+    "elapsed": 3.122410297393799,
+    "code_cells": 21,
     "qois": {
       "norm_u": 0.523122,
       "norm_w": 0.0875197
@@ -114,13 +118,14 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "Turbulence-Model.ipynb": {
     "status": "PASS",
-    "elapsed": 7.980252504348755,
-    "code_cells": 20,
+    "elapsed": 7.950177192687988,
+    "code_cells": 21,
     "qois": {
       "norm_u": 5.37537,
       "norm_p": 129.651
@@ -132,13 +137,14 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "template-report-Elasticity.ipynb": {
     "status": "PASS",
-    "elapsed": 2.045872926712036,
-    "code_cells": 15,
+    "elapsed": 1.9871373176574707,
+    "code_cells": 16,
     "qois": {
       "norm_d": 0.659882,
       "min_vol": 0.000156975
@@ -148,13 +154,14 @@
       "gmsh_rect_minus_circles": "v6",
       "refine_cells": "v1",
       "tag_boundaries": "v1",
-      "plot_helpers": "v3"
+      "plot_helpers": "v3",
+      "ksp_helpers": "v1"
     }
   },
   "template-report-Navier-Stokes-ALE.ipynb": {
     "status": "PASS",
-    "elapsed": 3.7857916355133057,
-    "code_cells": 21,
+    "elapsed": 3.8189399242401123,
+    "code_cells": 22,
     "qois": {
       "norm_u": 2.69866,
       "norm_p": 58.4055,
@@ -166,13 +173,14 @@
       "refine_cells": "v1",
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "template-report-Navier-Stokes.ipynb": {
     "status": "PASS",
-    "elapsed": 4.190874338150024,
-    "code_cells": 21,
+    "elapsed": 4.209269046783447,
+    "code_cells": 22,
     "qois": {
       "norm_u": 2.70052,
       "norm_p": 58.3111
@@ -184,12 +192,13 @@
       "tag_boundaries": "v1",
       "plot_helpers": "v3",
       "xdmf_series": "v1",
-      "time_step": "v1"
+      "time_step": "v1",
+      "ksp_helpers": "v1"
     }
   },
   "template-report-Stokes-AMR.ipynb": {
     "status": "PASS",
-    "elapsed": 2.4773752689361572,
+    "elapsed": 2.4999639987945557,
     "code_cells": 16,
     "qois": {
       "norm_u": 2.95753,
@@ -207,7 +216,7 @@
   },
   "template-report-Stokes.ipynb": {
     "status": "PASS",
-    "elapsed": 1.9753358364105225,
+    "elapsed": 1.9654021263122559,
     "code_cells": 14,
     "qois": {
       "norm_u": 2.31471,

@@ -1,0 +1,33 @@
+name: Diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag-turbulence-ksp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Register ipykernel
+        shell: micromamba-shell {0}
+        run: python -m ipykernel install --user --name python3
+
+      - name: KSP diagnostic — Turbulence-Model FAST
+        shell: micromamba-shell {0}
+        run: python tools/diag_turbulence.py 2>&1 | tee /tmp/diag_turbulence_linux.txt
+
+      - name: Upload diagnostic output
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-turbulence-ksp-linux
+          path: /tmp/diag_turbulence_linux.txt
+          retention-days: 30

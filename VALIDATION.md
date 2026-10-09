@@ -78,7 +78,7 @@ CI regression guard uses `baseline_fast_ci.json` (rtol 1e-6). osx-arm64 values a
 | template-report-Stokes-AMR.ipynb | PASS | norm\_u=2.95753, norm\_p=12.861, J\_h=19.465 | same | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
 | template-report-Stokes.ipynb | PASS | norm\_u=2.31471, norm\_p=63.6404, delta\_p=46.3448 | norm\_u=2.31472, delta\_p=46.3441 | bootstrap v2, gmsh\_rect\_minus\_circles v6, refine\_cells v2, plot\_helpers v3, export\_xdmf v2, tag\_boundaries v1 |
 
-**Note (Turbulence-Model norm\_p):** norm\_p at FAST T=0.2 is the fractional-step pressure correction magnitude at step ~8; it is mesh- and solver-state dependent. Linux (129.651) and osx-arm64 (9.37) differ significantly — UNEXPLAINED. norm\_u (5.38 vs 5.52, 2.6% reldiff) is the physical velocity norm and is more stable.
+**Note (Turbulence-Model norm\_p):** norm\_p at FAST T=0.2 differs significantly between platforms: Linux 129.651, osx-arm64 9.37 — UNEXPLAINED. Pending KSP convergence diagnosis (reason, iterations, final residual per step and nonlinear iteration on both platforms).
 
 ---
 

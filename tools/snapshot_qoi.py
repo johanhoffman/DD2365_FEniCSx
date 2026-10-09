@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """snapshot_qoi.py
 
-Run all 12 course notebooks and capture QoIs for a reproducible snapshot table.
+Run course notebooks and capture named QoIs for a reproducible snapshot.
 
 Commands
 --------
-run       Execute notebooks, write snapshot JSON and markdown table.
+run       Execute notebooks, write snapshot JSON (and optional markdown table).
 compare   Compare two snapshot JSONs; exit 1 on drift beyond --rtol.
 
 Usage
@@ -14,17 +14,44 @@ Usage
     conda run -n fenicsx-0.11-py312 python tools/snapshot_qoi.py run --fast \\
           --out tools/baseline_fast_ci.json
 
-    # Full mode (default parameters, long-running):
-    caffeinate -i conda run -n fenicsx-0.11-py312 python tools/snapshot_qoi.py run \\
-          --out /tmp/snapshot_full.json
+    # Full mode (default parameters):
+    conda run -n fenicsx-0.11-py312 python tools/snapshot_qoi.py run \\
+          --out /tmp/snapshot_full.json --md
 
     # Regression guard:
     python tools/snapshot_qoi.py compare tools/baseline_fast_ci.json new.json --rtol 1e-6
 
-The snapshot JSON contains per-notebook QoI floats extracted from cell outputs plus metadata:
-    env, python_version, commit, lockfile_sha256, canonical_versions, timestamp, mode.
+QoI extraction
+--------------
+Each notebook's code cells are scanned for lines of the form::
 
-The --md flag writes a markdown table suitable for pasting into VALIDATION.md.
+    QOI <name> = <value>
+
+Only those named values are stored.  All other output (timings, cell counts,
+mesh IDs, etc.) is ignored.
+
+Canonical versions
+------------------
+Parsed per-notebook from ``# --- canonical: <name> vN ---`` markers
+actually present in each notebook.
+
+Snapshot JSON schema
+--------------------
+{
+  "_meta": {
+    "env": str, "python_version": str, "commit": str,
+    "lockfile_sha256_prefix": str, "timestamp": str, "mode": str
+  },
+  "<notebook.ipynb>": {
+    "status": "PASS" | "FAIL",
+    "elapsed": float,
+    "code_cells": int,
+    "qois": {"<name>": float, ...},          # named QoIs only
+    "canonical": {"<block>": "vN", ...},      # per-notebook canonical versions
+    "error": str                              # only on FAIL
+  },
+  ...
+}
 """
 
 import sys, os, re, json, time, hashlib, pathlib, argparse, subprocess
@@ -34,15 +61,23 @@ from nbclient import NotebookClient
 os.environ.setdefault("MPLBACKEND", "Agg")
 
 FAST_OVERRIDE_SOURCE = "T = 0.2\nplot_freq = 2\n"
-FLOAT_RE = re.compile(r"-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?")
+QOI_RE = re.compile(r"^QOI\s+(\S+)\s*=\s*(-?[\d.eE+\-]+)\s*$")
+CANONICAL_RE = re.compile(r"#\s*---\s*canonical:\s*(\S+)\s*v(\d+)\s*---")
 repo_root = pathlib.Path(__file__).parent.parent
+
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
 
-def _extract_floats(text: str) -> list:
-    return [float(m) for m in FLOAT_RE.findall(text) if m not in ("", ".")]
+def _extract_qois(cell_outputs_text: str) -> dict:
+    """Return {name: float} for every 'QOI <name> = <value>' line."""
+    qois = {}
+    for line in cell_outputs_text.splitlines():
+        m = QOI_RE.match(line.strip())
+        if m:
+            qois[m.group(1)] = float(m.group(2))
+    return qois
 
 
 def _cell_outputs_text(cell) -> str:
@@ -53,6 +88,15 @@ def _cell_outputs_text(cell) -> str:
         elif out.get("output_type") in ("execute_result", "display_data"):
             parts.append("".join(out.get("data", {}).get("text/plain", [])))
     return "\n".join(parts)
+
+
+def _notebook_canonical_versions(nb) -> dict:
+    """Parse canonical block markers from every source cell of a notebook."""
+    versions = {}
+    for cell in nb.cells:
+        for m in CANONICAL_RE.finditer(cell.get("source", "")):
+            versions[m.group(1)] = f"v{m.group(2)}"
+    return versions
 
 
 def _inject_fast(nb):
@@ -83,23 +127,6 @@ def _lockfile_hash() -> str:
     return hashlib.sha256(lockfile.read_bytes()).hexdigest()[:16]
 
 
-def _canonical_versions() -> dict:
-    """Extract canonical block versions from any notebook at the repo root."""
-    versions = {}
-    nbs = sorted(repo_root.glob("*.ipynb"))
-    if not nbs:
-        return versions
-    try:
-        with open(nbs[0]) as f:
-            nb = nbformat.read(f, as_version=4)
-        for cell in nb.cells:
-            for m in re.finditer(r"# --- canonical: (\S+) v(\d+) ---", cell.get("source", "")):
-                versions[m.group(1)] = f"v{m.group(2)}"
-    except Exception:
-        pass
-    return versions
-
-
 def _env_info() -> dict:
     env_name = os.environ.get("CONDA_DEFAULT_ENV", "unknown")
     try:
@@ -127,7 +154,6 @@ def cmd_run(args):
         **_env_info(),
         "commit": _git_commit(),
         "lockfile_sha256_prefix": _lockfile_hash(),
-        "canonical_versions": _canonical_versions(),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "mode": mode,
     }
@@ -136,6 +162,7 @@ def cmd_run(args):
     for nb_path in notebooks:
         with open(nb_path) as f:
             nb = nbformat.read(f, as_version=4)
+        canonical = _notebook_canonical_versions(nb)
         if mode == "fast":
             nb = _inject_fast(nb)
         cell_count = len([c for c in nb.cells if c["cell_type"] == "code"])
@@ -147,24 +174,29 @@ def cmd_run(args):
             )
             client.execute()
             elapsed = time.time() - t0
-            cell_floats = {}
-            for i, cell in enumerate(nb.cells):
+            qois = {}
+            for cell in nb.cells:
                 text = _cell_outputs_text(cell)
                 if text:
-                    floats = _extract_floats(text)
-                    if floats:
-                        cell_floats[str(i)] = floats
+                    qois.update(_extract_qois(text))
             results[nb_path.name] = {
-                "status": "PASS", "elapsed": elapsed,
-                "code_cells": cell_count, "cells": cell_floats,
+                "status": "PASS",
+                "elapsed": elapsed,
+                "code_cells": cell_count,
+                "qois": qois,
+                "canonical": canonical,
             }
-            print(f"PASS  {nb_path.name:<48} {elapsed:6.1f}s", flush=True)
+            qoi_str = "  ".join(f"{k}={v:.6g}" for k, v in qois.items())
+            print(f"PASS  {nb_path.name:<48} {elapsed:6.1f}s  {qoi_str}", flush=True)
         except Exception as exc:
             elapsed = time.time() - t0
             results[nb_path.name] = {
-                "status": "FAIL", "elapsed": elapsed,
-                "code_cells": cell_count, "error": str(exc)[:400],
-                "cells": {},
+                "status": "FAIL",
+                "elapsed": elapsed,
+                "code_cells": cell_count,
+                "qois": {},
+                "canonical": canonical,
+                "error": str(exc)[:400],
             }
             print(f"FAIL  {nb_path.name:<48} {elapsed:6.1f}s  {str(exc)[:80]}", flush=True)
 
@@ -186,15 +218,17 @@ def _print_markdown_table(results):
 
     print(f"\n## Snapshot — {mode} mode")
     print(f"\nEnv: `{env}` (Python {py}), commit `{commit}`, lockfile `{lock}`, {ts}\n")
-    print(f"| Notebook | Cells | Status | Elapsed (s) |")
-    print(f"|---|---|---|---|")
+    print(f"| Notebook | Cells | Status | Elapsed (s) | QoIs |")
+    print(f"|---|---|---|---|---|")
     for nb_name, data in sorted(results.items()):
         if nb_name.startswith("_"):
             continue
         status = data.get("status", "?")
         cells = data.get("code_cells", "?")
         elapsed = data.get("elapsed", 0.0)
-        print(f"| `{nb_name}` | {cells} | {status} | {elapsed:.1f} |")
+        qois = data.get("qois", {})
+        qoi_str = ", ".join(f"{k}={v:.6g}" for k, v in qois.items()) if qois else "—"
+        print(f"| `{nb_name}` | {cells} | {status} | {elapsed:.1f} | {qoi_str} |")
 
 
 # ---------------------------------------------------------------------------
@@ -221,27 +255,28 @@ def cmd_compare(args):
     for nb in all_nbs:
         if nb not in d2:
             print(f"MISSING in current: {nb}")
+            violations.append((nb, "MISSING", None, None, None))
             continue
         r1, r2 = d1[nb], d2[nb]
         if r1["status"] != "PASS" or r2["status"] != "PASS":
             rows.append((nb, "FAIL", "-"))
             continue
+        q1 = r1.get("qois", {})
+        q2 = r2.get("qois", {})
         nb_max = 0.0
-        for cell_idx in r1["cells"]:
-            if cell_idx not in r2["cells"]:
+        for name in q1:
+            if name not in q2:
+                print(f"  QOI missing in current: {nb}::{name}")
                 continue
-            f1s, f2s = r1["cells"][cell_idx], r2["cells"][cell_idx]
-            if len(f1s) != len(f2s):
-                continue
-            for v1, v2 in zip(f1s, f2s):
-                denom = max(abs(v1), abs(v2), 1e-300)
-                rd = abs(v1 - v2) / denom
-                if rd > nb_max:
-                    nb_max = rd
-                if rd > max_reldiff:
-                    max_reldiff = rd
-                if rd > rtol:
-                    violations.append((nb, cell_idx, v1, v2, rd))
+            v1, v2 = q1[name], q2[name]
+            denom = max(abs(v1), abs(v2), 1e-300)
+            rd = abs(v1 - v2) / denom
+            if rd > nb_max:
+                nb_max = rd
+            if rd > max_reldiff:
+                max_reldiff = rd
+            if rd > rtol:
+                violations.append((nb, name, v1, v2, rd))
         rows.append((nb, "PASS", f"{nb_max:.2e}"))
 
     w = 48
@@ -260,8 +295,11 @@ def cmd_compare(args):
     print(f"\nOverall max reldiff: {max_reldiff:.3e}  (rtol: {rtol:.0e})")
     if violations:
         print(f"\nDRIFT VIOLATIONS ({len(violations)}):")
-        for nb, ci, v1, v2, rd in violations[:20]:
-            print(f"  {nb} cell {ci}: {v1} vs {v2}  reldiff={rd:.3e}")
+        for nb, name, v1, v2, rd in violations[:20]:
+            if v1 is None:
+                print(f"  {nb}: {name}")
+            else:
+                print(f"  {nb}::{name}: {v1} vs {v2}  reldiff={rd:.3e}")
         sys.exit(1)
     else:
         print("PASS — all QoIs within rtol.")

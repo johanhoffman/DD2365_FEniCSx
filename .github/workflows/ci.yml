@@ -50,17 +50,21 @@ jobs:
           DD2365_FAST: "1"
         run: python tools/run_notebooks.py
 
-      - name: Regression guard
+      - name: Snapshot — run
         shell: micromamba-shell {0}
         env:
           MPLBACKEND: Agg
           OMP_NUM_THREADS: "1"
-          DD2365_FAST: "1"
-        run: |
-          python tools/snapshot_qoi.py run --fast --out /tmp/snapshot_ci.json
-          python tools/snapshot_qoi.py compare tools/baseline_fast_ci.json /tmp/snapshot_ci.json --rtol 1e-6
+        run: python tools/snapshot_qoi.py run --fast --out /tmp/snapshot_ci.json
 
-      - name: Upload snapshot (workflow_dispatch only)
+      - name: Snapshot — regression guard
+        if: github.event_name != 'workflow_dispatch'
+        shell: micromamba-shell {0}
+        run: >
+          python tools/snapshot_qoi.py compare
+          tools/baseline_fast_ci.json /tmp/snapshot_ci.json --rtol 1e-6
+
+      - name: Upload snapshot artifact (workflow_dispatch only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
